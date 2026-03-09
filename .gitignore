@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# py2app
+.eggs/
+
+# macOS
+.DS_Store
+*.app
+
+# Whisper models (too large for git)
+*.bin
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Preferences (user-specific)
+preferences.json
+history.json
+PXDictate.iconset/
+generate_icon.py

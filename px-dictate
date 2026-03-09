@@ -1,0 +1,11 @@
+#!/bin/bash
+# PX Dictate — Quick voice-to-text for piping into any command
+# Usage:
+#   px-dictate                    → Record, transcribe, copy to clipboard
+#   px-dictate | claude -p        → Record and pipe directly to Claude CLI
+#   px-dictate --lang es          → Force Spanish
+#   px-dictate --duration 10      → Record for 10 seconds
+#   eval "claude -p '$(px-dictate)'"  → Use transcription as Claude prompt
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec python3 "$SCRIPT_DIR/voice-record.py" "$@"
