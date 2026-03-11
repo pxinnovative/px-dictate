@@ -2,6 +2,8 @@
 # PX Dictate — macOS Voice-to-Text Installer
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # https://github.com/pxinnovative/px-dictate
+#
+# Compatible with bash 3.2+ (macOS default) — no associative arrays.
 
 # ── Constants (zero hard-coding) ─────────────────────────────────────────────
 APP_NAME="PX Dictate"
@@ -15,21 +17,42 @@ BREW_DEPS="whisper-cpp portaudio ffmpeg"
 PIP_DEPS="pyaudio rumps pyobjc"
 INSTALL_DIR="/Applications"
 
-# Model catalog — name → filename, size label
-declare -A MODEL_FILES=(
-  [tiny]="ggml-tiny.bin"
-  [base]="ggml-base.bin"
-  [small]="ggml-small.bin"
-  [medium]="ggml-medium.bin"
-  [large-v3]="ggml-large-v3.bin"
-)
-declare -A MODEL_SIZES=(
-  [tiny]="75 MB"
-  [base]="142 MB"
-  [small]="466 MB"
-  [medium]="1.5 GB"
-  [large-v3]="3.1 GB"
-)
+# ── Lookup helpers (bash 3.2 compatible — no declare -A) ─────────────────────
+model_file() {
+  case "$1" in
+    tiny)     echo "ggml-tiny.bin" ;;
+    base)     echo "ggml-base.bin" ;;
+    small)    echo "ggml-small.bin" ;;
+    medium)   echo "ggml-medium.bin" ;;
+    large-v3) echo "ggml-large-v3.bin" ;;
+  esac
+}
+
+model_size() {
+  case "$1" in
+    tiny)     echo "75 MB" ;;
+    base)     echo "142 MB" ;;
+    small)    echo "466 MB" ;;
+    medium)   echo "1.5 GB" ;;
+    large-v3) echo "3.1 GB" ;;
+  esac
+}
+
+dep_binary() {
+  case "$1" in
+    whisper-cpp) echo "whisper-cli" ;;
+    ffmpeg)      echo "ffmpeg" ;;
+    *)           echo "" ;;
+  esac
+}
+
+pip_import() {
+  case "$1" in
+    pyaudio) echo "pyaudio" ;;
+    rumps)   echo "rumps" ;;
+    pyobjc)  echo "objc" ;;
+  esac
+}
 
 # ── CLI flags ────────────────────────────────────────────────────────────────
 AUTO_YES=false
@@ -86,9 +109,6 @@ confirm() {
 
 # Compare two dotted version strings: returns 0 if $1 >= $2
 version_gte() {
-  printf '%s\n%s' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n -C
-  # sort -C exits 0 if already sorted (i.e. $2 <= $1)
-  # We need the opposite check, so reverse the args
   [ "$(printf '%s\n%s' "$2" "$1" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$2" ]
 }
 
@@ -175,8 +195,13 @@ step "3/6 — System Dependencies"
 
 MISSING_BREW=()
 for dep in ${BREW_DEPS}; do
+  bin="$(dep_binary "${dep}")"
   if brew list --formula "${dep}" &>/dev/null; then
-    ok "${dep} installed"
+    ok "${dep} installed (brew)"
+  elif [[ -n "${bin}" ]] && command -v "${bin}" &>/dev/null; then
+    ok "${dep} found: $(command -v "${bin}")"
+  elif [[ "${dep}" == "portaudio" ]] && find /opt/homebrew/lib /usr/local/lib -name "libportaudio*" -print -quit 2>/dev/null | grep -q .; then
+    ok "${dep} installed (library found)"
   else
     warn "${dep} not found"
     MISSING_BREW+=("${dep}")
@@ -198,16 +223,9 @@ fi
 # ── Step 4: Python Packages ─────────────────────────────────────────────────
 step "4/6 — Python Packages"
 
-# Map pip package names to their importable module names
-declare -A PIP_IMPORT_NAMES=(
-  [pyaudio]="pyaudio"
-  [rumps]="rumps"
-  [pyobjc]="objc"
-)
-
 MISSING_PIP=()
 for pkg in ${PIP_DEPS}; do
-  import_name="${PIP_IMPORT_NAMES[${pkg}]}"
+  import_name="$(pip_import "${pkg}")"
   if python3 -c "import ${import_name}" &>/dev/null 2>&1; then
     ok "${pkg} installed"
   else
@@ -246,11 +264,11 @@ else
   if [[ -z "${CHOSEN_MODEL}" ]]; then
     echo ""
     echo "  Choose a Whisper model:"
-    echo "    1) tiny      (${MODEL_SIZES[tiny]})   — fastest, lower quality"
-    echo "    2) base      (${MODEL_SIZES[base]})  — fast, fair quality"
-    echo "    3) small     (${MODEL_SIZES[small]})  — balanced [recommended]"
-    echo "    4) medium    (${MODEL_SIZES[medium]}) — slow, very good quality"
-    echo "    5) large-v3  (${MODEL_SIZES[large-v3]}) — slowest, best quality"
+    echo "    1) tiny      ($(model_size tiny))   — fastest, lower quality"
+    echo "    2) base      ($(model_size base))  — fast, fair quality"
+    echo "    3) small     ($(model_size small))  — balanced [recommended]"
+    echo "    4) medium    ($(model_size medium)) — slow, very good quality"
+    echo "    5) large-v3  ($(model_size large-v3)) — slowest, best quality"
     echo "    s) Skip      — I'll download later"
     echo ""
 
@@ -273,7 +291,7 @@ else
   fi
 
   if [[ -n "${CHOSEN_MODEL}" ]]; then
-    MODEL_FILE="${MODEL_FILES[${CHOSEN_MODEL}]}"
+    MODEL_FILE="$(model_file "${CHOSEN_MODEL}")"
     if [[ -z "${MODEL_FILE}" ]]; then
       fail "Unknown model: ${CHOSEN_MODEL}. Valid: tiny, base, small, medium, large-v3"
       exit 1
@@ -281,7 +299,7 @@ else
     MODEL_URL="${HUGGINGFACE_BASE}/${MODEL_FILE}"
     DEST="${MODELS_DIR}/${MODEL_FILE}"
 
-    info "Downloading ${MODEL_FILE} (${MODEL_SIZES[${CHOSEN_MODEL}]})..."
+    info "Downloading ${MODEL_FILE} ($(model_size "${CHOSEN_MODEL}"))..."
     if curl -L --progress-bar -o "${DEST}" "${MODEL_URL}"; then
       ok "Model saved to ${DEST}"
     else
@@ -323,13 +341,15 @@ else
 
   if [[ -n "${REPO_DIR}" ]]; then
     if confirm "Build ${APP_NAME}.app and install to ${INSTALL_DIR}?"; then
-      info "Building ${APP_NAME}.app..."
+      info "Building ${APP_NAME}.app (clean build)..."
       cd "${REPO_DIR}"
+      rm -rf build/ dist/
       python3 setup.py py2app
 
       APP_BUNDLE="dist/${APP_NAME}.app"
       if [[ -d "${APP_BUNDLE}" ]]; then
         info "Installing to ${INSTALL_DIR}..."
+        rm -rf "${INSTALL_DIR}/${APP_NAME}.app"
         cp -R "${APP_BUNDLE}" "${INSTALL_DIR}/"
         ok "${APP_NAME}.app installed to ${INSTALL_DIR}"
       else
@@ -343,15 +363,15 @@ fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
-echo "${GREEN}${BOLD}  ✓ ${APP_NAME} installed successfully!${RESET}"
+printf "  ${GREEN}${BOLD}✓ ${APP_NAME} is ready!${RESET}\n"
 echo ""
 echo "  Open ${APP_NAME} from your Applications folder or Spotlight."
 echo ""
-echo "  ${BOLD}First run permissions needed:${RESET}"
+printf "  ${BOLD}First run permissions needed:${RESET}\n"
 echo "    • Microphone     — to record your voice"
 echo "    • Accessibility  — to paste text into active apps"
 echo "    • Notifications  — for status updates (recommended)"
 echo ""
-echo "  Go to ${BOLD}System Settings > Privacy & Security${RESET} to grant each one."
-echo "  Also set: ${BOLD}System Settings > Keyboard${RESET} > \"Press fn key to\" > \"Do Nothing\""
+printf "  Go to ${BOLD}System Settings > Privacy & Security${RESET} to grant each one.\n"
+printf "  Also set: ${BOLD}System Settings > Keyboard${RESET} > \"Press fn key to\" > \"Do Nothing\"\n"
 echo ""
