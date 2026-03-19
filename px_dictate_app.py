@@ -30,6 +30,7 @@ import tempfile
 import threading
 import time
 import wave
+import urllib.request
 import webbrowser
 from xml.sax.saxutils import escape as xml_escape
 
@@ -39,7 +40,7 @@ import rumps
 
 import AppKit
 import Quartz
-from Foundation import NSObject, NSUserDefaults
+from Foundation import NSUserDefaults
 
 import logging
 
@@ -58,7 +59,7 @@ _log.info("WHISPER_CLI will be resolved after config section")
 
 # ── App Info ────────────────────────────────────────────────────────────
 APP_NAME = "PX Dictate"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_BUNDLE_ID = "com.pxinnovative.pxdictate"
 APP_AUTHOR = "Victor Kerber"
 APP_COMPANY = "PX Innovative Solutions Inc."
@@ -148,6 +149,8 @@ SENSITIVITY = float(os.environ.get("PX_DICTATE_SENSITIVITY", "8.0"))
 DEFAULT_LANG = os.environ.get("PX_DICTATE_LANG", "auto")
 HISTORY_MAX = 10
 
+MIN_RECORDING_SECS = 1.5  # discard recordings shorter than this to avoid Whisper hallucinations
+
 FN_FLAG = 0x800000
 FN_HOLD_THRESHOLD = 0.5
 FN_LONG_HOLD = 1.5
@@ -192,16 +195,101 @@ CORNER_RADIUS_SMALL = 4.0
 CORNER_RADIUS_BUTTON = 7.0
 MIN_MENUBAR_H = 24
 
-# ── VU Meter Colors ──────────────────────────────────────────────────────
+# ── VU Meter Thresholds ──────────────────────────────────────────────────
 VU_THRESHOLD_LOW = 0.4
 VU_THRESHOLD_HIGH = 0.7
-VU_COLOR_GREEN = (0.25, 0.82, 0.35)
-VU_COLOR_YELLOW = (0.95, 0.82, 0.15)
-VU_COLOR_RED = (0.95, 0.25, 0.25)
 
 ALPHA_MINI = 0.45
 ALPHA_HOVER = 0.75
 ALPHA_EXPANDED = 1.0
+
+# ── Pill Themes ─────────────────────────────────────────────────────────
+THEMES = {
+    "classic": {
+        "name": "Classic",
+        "material": "HUDWindow",
+        "alpha_mini": 0.7,
+        "alpha_hover": 0.9,
+        "alpha_expanded": 1.0,
+        "corner_radius_pill": 8.0,
+        "corner_radius_panel": 10.0,
+        "button_corner": 4.0,
+        "dot_dark": (0.9, 0.9, 0.9),
+        "dot_light": (0.15, 0.15, 0.15),
+        "dot_hover_dark": (1.0, 1.0, 1.0),
+        "dot_hover_light": (0.0, 0.0, 0.0),
+        "text_color": (1.0, 1.0, 1.0),
+        "hint_text_color": (0.95, 0.95, 0.95),
+        "button_bg": (0.25, 0.25, 0.25, 0.85),
+        "button_bg_hover": (0.25, 0.25, 0.25, 0.95),
+        "stop_bg": (1.0, 0.15, 0.15, 0.9),
+        "rec_bg": (0.95, 0.05, 0.05, 0.95),
+        "pause_resume_bg": (0.1, 0.6, 0.2, 0.85),
+        "bar_bg": (0.1, 0.1, 0.1, 0.75),
+        "vu_color_low": (0.2, 0.9, 0.3),
+        "vu_color_mid": (1.0, 0.85, 0.0),
+        "vu_color_high": (1.0, 0.15, 0.15),
+        "key_bg": (0.3, 0.3, 0.3, 0.9),
+        "border_width": 1,
+        "border_color": (0.4, 0.4, 0.4, 0.5),
+    },
+    "glass": {
+        "name": "Glass",
+        "material": "UnderWindowBackground",
+        "alpha_mini": 0.25,
+        "alpha_hover": 0.55,
+        "alpha_expanded": 0.85,
+        "corner_radius_pill": 16.0,
+        "corner_radius_panel": 22.0,
+        "button_corner": 8.0,
+        "dot_dark": (0.9, 0.9, 0.95),
+        "dot_light": (0.3, 0.3, 0.35),
+        "dot_hover_dark": (1.0, 1.0, 1.0),
+        "dot_hover_light": (0.1, 0.1, 0.15),
+        "text_color": (1.0, 1.0, 1.0),
+        "hint_text_color": (0.92, 0.92, 0.95),
+        "button_bg": (0.6, 0.6, 0.65, 0.35),
+        "button_bg_hover": (0.6, 0.6, 0.65, 0.55),
+        "stop_bg": (0.85, 0.35, 0.35, 0.5),
+        "rec_bg": (0.8, 0.25, 0.25, 0.55),
+        "pause_resume_bg": (0.25, 0.7, 0.4, 0.5),
+        "bar_bg": (0.4, 0.4, 0.45, 0.25),
+        "vu_color_low": (0.45, 0.88, 0.55),
+        "vu_color_mid": (0.95, 0.88, 0.45),
+        "vu_color_high": (0.95, 0.5, 0.45),
+        "key_bg": (0.6, 0.6, 0.65, 0.4),
+        "border_width": 1,
+        "border_color": (0.8, 0.8, 0.85, 0.3),
+    },
+    "minimal": {
+        "name": "Minimal",
+        "material": "Popover",
+        "alpha_mini": 0.4,
+        "alpha_hover": 0.7,
+        "alpha_expanded": 0.88,
+        "corner_radius_pill": 5.0,
+        "corner_radius_panel": 6.0,
+        "button_corner": 3.0,
+        "dot_dark": (0.5, 0.5, 0.5),
+        "dot_light": (0.4, 0.4, 0.4),
+        "dot_hover_dark": (0.8, 0.8, 0.8),
+        "dot_hover_light": (0.2, 0.2, 0.2),
+        "text_color": (0.85, 0.85, 0.85),
+        "hint_text_color": (0.7, 0.7, 0.7),
+        "button_bg": (0.35, 0.35, 0.35, 0.45),
+        "button_bg_hover": (0.35, 0.35, 0.35, 0.65),
+        "stop_bg": (0.6, 0.25, 0.25, 0.5),
+        "rec_bg": (0.55, 0.15, 0.15, 0.55),
+        "pause_resume_bg": (0.2, 0.4, 0.25, 0.5),
+        "bar_bg": (0.25, 0.25, 0.25, 0.3),
+        "vu_color_low": (0.6, 0.6, 0.6),
+        "vu_color_mid": (0.75, 0.75, 0.75),
+        "vu_color_high": (0.9, 0.9, 0.9),
+        "key_bg": (0.25, 0.25, 0.25, 0.6),
+        "border_width": 0,
+        "border_color": (0.5, 0.5, 0.5, 0.0),
+    },
+}
 
 SETUP_DONE_KEY = "setup_completed_v1"
 
@@ -241,6 +329,7 @@ class PrefsManager:
         "save_dir": DEFAULT_SAVE_DIR,
         "hotkey": "fn",
         "record_system_sounds": True,
+        "theme": "classic",
     }
 
     def __init__(self):
@@ -547,6 +636,26 @@ class OnboardingWizard:
                 "\u2318Q              \u2014 Quit PX Dictate"
             ),
             "emoji": "\u2328\ufe0f",
+        },
+        {
+            "title": "Pro Tip: Voice Isolation",
+            "subtitle": "Dramatically improve transcription accuracy.",
+            "body": (
+                "macOS has a built-in feature called Voice Isolation that uses\n"
+                "Apple's Neural Engine to filter background noise.\n\n"
+                "This makes a HUGE difference for Whisper accuracy — especially\n"
+                "with keyboard clicks, fans, music, or other people talking.\n\n"
+                "HOW TO ENABLE:\n\n"
+                "\u2022 Click the mic icon in your menu bar (appears during recording)\n"
+                "\u2022 Or open Control Center \u2192 Mic Mode\n"
+                "\u2022 Select 'Voice Isolation'\n\n"
+                "REQUIREMENTS:\n\n"
+                "\u2022 Apple Silicon Mac (M1 or later)\n"
+                "\u2022 macOS 12 Monterey or later\n\n"
+                "This is a system-wide setting — once enabled, it stays on\n"
+                "for all apps until you change it. We highly recommend it!"
+            ),
+            "emoji": "\U0001f3a4",
         },
         {
             "title": f"You're all set!",
@@ -1240,8 +1349,7 @@ class HotkeyManager:
             event_mask, self._handler, None,
         )
         if tap is None:
-            _log.warning("Event tap creation failed — Accessibility not granted")
-            print("ERROR: Event tap failed. Grant Accessibility to PX Dictate.", file=sys.stderr)
+            _log.error("Event tap failed. Grant Accessibility to PX Dictate.")
             self._tap_active = False
             return False
         source = Quartz.CFMachPortCreateRunLoopSource(None, tap, 0)
@@ -1398,6 +1506,7 @@ class FloatingWidget:
         self._hovering = False
         self._current_hotkey = "fn"
         self._last_dark = None
+        self._theme_name = "classic"
         _on_main(self._create_window)
 
     def set_recording_callbacks(self, on_pause, on_stop):
@@ -1407,19 +1516,103 @@ class FloatingWidget:
     def _dot_color(self, hover=False):
         """Return appropriate dot color for current system appearance."""
         dark = _is_dark_mode()
+        t = self._get_theme()
         if hover:
-            return AppKit.NSColor.whiteColor() if dark else AppKit.NSColor.blackColor()
-        if dark:
-            return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.7, 0.7, 0.7, 1.0)
+            key = "dot_hover_dark" if dark else "dot_hover_light"
         else:
-            return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.25, 0.25, 0.25, 1.0)
+            key = "dot_dark" if dark else "dot_light"
+        r, g, b = t[key]
+        return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(r, g, b, 1.0)
+
+    def _get_theme(self):
+        """Return current theme dict."""
+        return THEMES.get(self._theme_name, THEMES["classic"])
+
+    def _theme_color(self, key, alpha=1.0):
+        """Return NSColor from theme key."""
+        t = self._get_theme()
+        vals = t.get(key, (0.5, 0.5, 0.5))
+        if len(vals) == 4:
+            return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(vals[0], vals[1], vals[2], vals[3])
+        return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(vals[0], vals[1], vals[2], alpha)
+
+    def _theme_material(self):
+        """Return NSVisualEffectMaterial for current theme."""
+        t = self._get_theme()
+        material_name = t.get("material", "HUDWindow")
+        materials = {
+            "HUDWindow": AppKit.NSVisualEffectMaterialHUDWindow,
+            "UnderWindowBackground": AppKit.NSVisualEffectMaterialUnderWindowBackground,
+            "Popover": AppKit.NSVisualEffectMaterialPopover,
+        }
+        return materials.get(material_name, AppKit.NSVisualEffectMaterialHUDWindow)
+
+    def set_theme(self, theme_name):
+        """Apply a new theme to the widget."""
+        if theme_name not in THEMES:
+            return
+        self._theme_name = theme_name
+        t = self._get_theme()
+        def _do():
+            if not self.window:
+                return
+            # Update material
+            self.vibrancy.setMaterial_(self._theme_material())
+            # Update corner radius
+            if self._expanded and self._recording_mode:
+                self.vibrancy.layer().setCornerRadius_(t["corner_radius_panel"])
+            else:
+                self.vibrancy.layer().setCornerRadius_(t["corner_radius_pill"])
+            # Update border
+            bw = t.get("border_width", 0)
+            self.vibrancy.layer().setBorderWidth_(bw)
+            if bw > 0:
+                bc = t.get("border_color", (0.5, 0.5, 0.5, 0.3))
+                self.vibrancy.layer().setBorderColor_(
+                    AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(bc[0], bc[1], bc[2], bc[3]).CGColor()
+                )
+            else:
+                self.vibrancy.layer().setBorderColor_(AppKit.NSColor.clearColor().CGColor())
+            # Update opacity
+            if self._expanded:
+                self.window.setAlphaValue_(t["alpha_expanded"])
+            elif self._hovering:
+                self.window.setAlphaValue_(t["alpha_hover"])
+            else:
+                self.window.setAlphaValue_(t["alpha_mini"])
+            # Update dot color
+            if not self._expanded:
+                self.mini_label.setTextColor_(self._dot_color(hover=self._hovering))
+            # Update button backgrounds and corners
+            btn_corner = t.get("button_corner", 4.0)
+            if self.pause_btn:
+                self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
+                self.pause_btn.layer().setCornerRadius_(btn_corner)
+                self.pause_btn.setTextColor_(self._theme_color("text_color"))
+            if self.stop_btn:
+                self.stop_btn.layer().setBackgroundColor_(self._theme_color("stop_bg").CGColor())
+                self.stop_btn.layer().setCornerRadius_(btn_corner)
+                self.stop_btn.setTextColor_(self._theme_color("text_color"))
+            if self._rec_bg:
+                self._rec_bg.layer().setBackgroundColor_(self._theme_color("rec_bg").CGColor())
+                self._rec_bg.layer().setCornerRadius_(t.get("button_corner", CORNER_RADIUS_BUTTON))
+            if self.rec_btn:
+                self.rec_btn.setTextColor_(self._theme_color("text_color"))
+            if self.bar_bg:
+                self.bar_bg.layer().setBackgroundColor_(self._theme_color("bar_bg").CGColor())
+            # Update label text colors if visible
+            if self.label and not self.label.isHidden():
+                self.label.setTextColor_(self._theme_color("text_color"))
+            if self.label2 and not self.label2.isHidden():
+                self.label2.setTextColor_(self._theme_color("hint_text_color"))
+        _on_main(_do)
 
     def _make_attributed(self, parts, size=10.5, center=True):
         result = AppKit.NSMutableAttributedString.alloc().init()
         normal_font = AppKit.NSFont.systemFontOfSize_weight_(size, AppKit.NSFontWeightMedium)
         key_font = AppKit.NSFont.monospacedSystemFontOfSize_weight_(size, AppKit.NSFontWeightBold)
-        white = AppKit.NSColor.whiteColor()
-        key_bg = AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.4, 0.4, 0.4, 0.8)
+        text_clr = self._theme_color("text_color")
+        key_bg = self._theme_color("key_bg")
         para = AppKit.NSMutableParagraphStyle.alloc().init()
         if center:
             para.setAlignment_(AppKit.NSTextAlignmentCenter)
@@ -1427,7 +1620,7 @@ class FloatingWidget:
         for text, is_key in parts:
             attrs = {
                 AppKit.NSFontAttributeName: key_font if is_key else normal_font,
-                AppKit.NSForegroundColorAttributeName: white,
+                AppKit.NSForegroundColorAttributeName: text_clr,
                 AppKit.NSParagraphStyleAttributeName: para,
             }
             if is_key:
@@ -1461,7 +1654,7 @@ class FloatingWidget:
         self.window.setCanHide_(False)
         self.window.setIgnoresMouseEvents_(False)
         self.window.setAcceptsMouseMovedEvents_(True)
-        self.window.setAlphaValue_(ALPHA_MINI)
+        self.window.setAlphaValue_(self._get_theme()["alpha_mini"])
 
         self.window.setCollectionBehavior_(
             AppKit.NSWindowCollectionBehaviorCanJoinAllSpaces |
@@ -1477,12 +1670,22 @@ class FloatingWidget:
         self.vibrancy.setAutoresizingMask_(
             AppKit.NSViewWidthSizable | AppKit.NSViewHeightSizable
         )
-        self.vibrancy.setMaterial_(AppKit.NSVisualEffectMaterialHUDWindow)
+        self.vibrancy.setMaterial_(self._theme_material())
         self.vibrancy.setBlendingMode_(AppKit.NSVisualEffectBlendingModeBehindWindow)
         self.vibrancy.setState_(AppKit.NSVisualEffectStateActive)
         self.vibrancy.setWantsLayer_(True)
-        self.vibrancy.layer().setCornerRadius_(CORNER_RADIUS_PILL)
+        self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_pill"])
         self.vibrancy.layer().setMasksToBounds_(True)
+        # Apply theme border
+        _init_t = self._get_theme()
+        _init_bw = _init_t.get("border_width", 0)
+        if _init_bw > 0:
+            self.vibrancy.layer().setBorderWidth_(_init_bw)
+            _init_bc = _init_t.get("border_color", (0.5, 0.5, 0.5, 0.3))
+            self.vibrancy.layer().setBorderColor_(
+                AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(
+                    _init_bc[0], _init_bc[1], _init_bc[2], _init_bc[3]).CGColor()
+            )
         content.addSubview_(self.vibrancy)
 
         # Mini dots — nudged down for visual centering
@@ -1504,7 +1707,7 @@ class FloatingWidget:
         # Hint line 2 (hidden)
         self.label2 = AppKit.NSTextField.alloc().initWithFrame_(((8, 6), (HINT_W - 16, 14)))
         self._setup_label(self.label2, "", 9.5, AppKit.NSFontWeightMedium,
-                          AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.85, 0.85, 0.85, 1.0))
+                          self._theme_color("hint_text_color"))
         self.label2.setHidden_(True)
         content.addSubview_(self.label2)
 
@@ -1513,9 +1716,7 @@ class FloatingWidget:
         self._bar_max_w = bar_w
         self.bar_bg = AppKit.NSView.alloc().initWithFrame_(((BAR_INSET, 5), (bar_w, 8)))
         self.bar_bg.setWantsLayer_(True)
-        self.bar_bg.layer().setBackgroundColor_(
-            AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.2, 0.2, 0.2, 0.5).CGColor()
-        )
+        self.bar_bg.layer().setBackgroundColor_(self._theme_color("bar_bg").CGColor())
         self.bar_bg.layer().setCornerRadius_(CORNER_RADIUS_SMALL)
         self.bar_bg.setHidden_(True)
         content.addSubview_(self.bar_bg)
@@ -1530,24 +1731,20 @@ class FloatingWidget:
         # Pause button (hidden, shown during recording)
         self.pause_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 80, 24), (32, 16)))
         self._setup_label(self.pause_btn, "⏸", 11, AppKit.NSFontWeightBold,
-                          AppKit.NSColor.whiteColor())
+                          self._theme_color("text_color"))
         self.pause_btn.setWantsLayer_(True)
-        self.pause_btn.layer().setCornerRadius_(CORNER_RADIUS_SMALL)
-        self.pause_btn.layer().setBackgroundColor_(
-            AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.4, 0.4, 0.4, 0.6).CGColor()
-        )
+        self.pause_btn.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_SMALL))
+        self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
         self.pause_btn.setHidden_(True)
         content.addSubview_(self.pause_btn)
 
         # Stop button (hidden, shown during recording)
         self.stop_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 44, 24), (32, 16)))
         self._setup_label(self.stop_btn, "\u23f9", 11, AppKit.NSFontWeightBold,
-                          AppKit.NSColor.whiteColor())
+                          self._theme_color("text_color"))
         self.stop_btn.setWantsLayer_(True)
-        self.stop_btn.layer().setCornerRadius_(CORNER_RADIUS_SMALL)
-        self.stop_btn.layer().setBackgroundColor_(
-            AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.85, 0.25, 0.25, 0.7).CGColor()
-        )
+        self.stop_btn.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_SMALL))
+        self.stop_btn.layer().setBackgroundColor_(self._theme_color("stop_bg").CGColor())
         self.stop_btn.setHidden_(True)
         content.addSubview_(self.stop_btn)
 
@@ -1555,16 +1752,14 @@ class FloatingWidget:
         # Use an NSView as the button background, with a text label inside
         self._rec_bg = AppKit.NSView.alloc().initWithFrame_(((HINT_W - 64, 10), (58, 26)))
         self._rec_bg.setWantsLayer_(True)
-        self._rec_bg.layer().setCornerRadius_(CORNER_RADIUS_BUTTON)
-        self._rec_bg.layer().setBackgroundColor_(
-            AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.8, 0.15, 0.15, 0.85).CGColor()
-        )
+        self._rec_bg.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_BUTTON))
+        self._rec_bg.layer().setBackgroundColor_(self._theme_color("rec_bg").CGColor())
         self._rec_bg.setHidden_(True)
         content.addSubview_(self._rec_bg)
         # Text label centered inside the bg view — use tight height to avoid top-align gap
         self.rec_btn = AppKit.NSTextField.alloc().initWithFrame_(((0, 2), (56, 20)))
         self._setup_label(self.rec_btn, "\U0001f534 REC", 11, AppKit.NSFontWeightHeavy,
-                          AppKit.NSColor.whiteColor())
+                          self._theme_color("text_color"))
         self._rec_bg.addSubview_(self.rec_btn)
 
         self.window.orderFrontRegardless()
@@ -1656,7 +1851,7 @@ class FloatingWidget:
             self.window.setFrame_display_(((x, y), (MINI_HOVER_W, MINI_HOVER_H)), True)
             self.mini_label.setFrame_(((0, -3), (MINI_HOVER_W, MINI_HOVER_H)))
             self.mini_label.setTextColor_(self._dot_color(hover=True))
-            self.window.setAlphaValue_(ALPHA_HOVER)
+            self.window.setAlphaValue_(self._get_theme()["alpha_hover"])
         _on_main(_do)
 
     def _do_hover_exit(self):
@@ -1672,7 +1867,7 @@ class FloatingWidget:
             self.window.setFrame_display_(((x, y), (MINI_W, MINI_H)), True)
             self.mini_label.setFrame_(((0, -2), (MINI_W, MINI_H)))
             self.mini_label.setTextColor_(self._dot_color())
-            self.window.setAlphaValue_(ALPHA_MINI)
+            self.window.setAlphaValue_(self._get_theme()["alpha_mini"])
         _on_main(_do)
 
     def move_to_active_screen(self):
@@ -1713,7 +1908,7 @@ class FloatingWidget:
             x = screen_x + (screen_w - HINT_W) / 2
             y = top - HINT_H
             self.window.setFrame_display_(((x, y), (HINT_W, HINT_H)), True)
-            self.vibrancy.layer().setCornerRadius_(CORNER_RADIUS_WIDGET)
+            self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_pill"])
             self.mini_label.setHidden_(True)
 
             if self._current_hotkey == "fn":
@@ -1731,7 +1926,7 @@ class FloatingWidget:
 
             self.label2.setFrame_(((10, 8), (HINT_W - 76, 14)))
             self.label2.setStringValue_("to start dictating")
-            self.label2.setTextColor_(AppKit.NSColor.whiteColor())
+            self.label2.setTextColor_(self._theme_color("hint_text_color"))
             self.label2.setFont_(AppKit.NSFont.systemFontOfSize_weight_(10, AppKit.NSFontWeightMedium))
             self.label2.setAlignment_(AppKit.NSTextAlignmentLeft)
             self.label2.setHidden_(False)
@@ -1744,7 +1939,7 @@ class FloatingWidget:
             self.bar_view.setHidden_(True)
             self.pause_btn.setHidden_(True)
             self.stop_btn.setHidden_(True)
-            self.window.setAlphaValue_(ALPHA_EXPANDED)
+            self.window.setAlphaValue_(self._get_theme()["alpha_expanded"])
         _on_main(_do)
 
         def _auto_collapse():
@@ -1772,12 +1967,12 @@ class FloatingWidget:
             x = screen_x + (screen_w - REC_PILL_W) / 2
             y = top - REC_PILL_H
             self.window.setFrame_display_(((x, y), (REC_PILL_W, REC_PILL_H)), True)
-            self.vibrancy.layer().setCornerRadius_(CORNER_RADIUS_PANEL)
+            self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_panel"])
             self.mini_label.setHidden_(True)
 
             self.label.setFrame_(((10, 26), (REC_PILL_W - 100, 14)))
             self.label.setFont_(AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium))
-            self.label.setTextColor_(AppKit.NSColor.whiteColor())
+            self.label.setTextColor_(self._theme_color("text_color"))
             self.label.setStringValue_("🎙️ Recording...")
             self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
             self.label.setHidden_(False)
@@ -1798,7 +1993,7 @@ class FloatingWidget:
             self.bar_bg.setHidden_(False)
             self.bar_view.setFrame_(((BAR_INSET, 5), (1, 8)))
             self.bar_view.setHidden_(False)
-            self.window.setAlphaValue_(ALPHA_EXPANDED)
+            self.window.setAlphaValue_(self._get_theme()["alpha_expanded"])
         _on_main(_do)
         self._start_alternation()
 
@@ -1818,7 +2013,7 @@ class FloatingWidget:
             x = screen_x + (screen_w - MINI_W) / 2
             y = top - MINI_H
             self.window.setFrame_display_(((x, y), (MINI_W, MINI_H)), True)
-            self.vibrancy.layer().setCornerRadius_(CORNER_RADIUS_PILL)
+            self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_pill"])
             self.mini_label.setFrame_(((0, -2), (MINI_W, MINI_H)))
             self.mini_label.setTextColor_(self._dot_color())
             self.mini_label.setHidden_(False)
@@ -1830,7 +2025,7 @@ class FloatingWidget:
             self.pause_btn.setHidden_(True)
             self.stop_btn.setHidden_(True)
             self._rec_bg.setHidden_(True)
-            self.window.setAlphaValue_(ALPHA_MINI)
+            self.window.setAlphaValue_(self._get_theme()["alpha_mini"])
         _on_main(_do)
 
     def _start_alternation(self):
@@ -1852,7 +2047,7 @@ class FloatingWidget:
         def _do():
             if self.label:
                 self.label.setFont_(AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium))
-                self.label.setTextColor_(AppKit.NSColor.whiteColor())
+                self.label.setTextColor_(self._theme_color("text_color"))
                 self.label.setStringValue_(text)
         _on_main(_do)
 
@@ -1861,13 +2056,14 @@ class FloatingWidget:
             return
         scaled = min(level * SENSITIVITY, 1.0)
         bar_width = max(1, int(scaled * self._bar_max_w))
+        t = self._get_theme()
 
         if scaled < VU_THRESHOLD_LOW:
-            r, g, b = VU_COLOR_GREEN
+            r, g, b = t["vu_color_low"]
         elif scaled < VU_THRESHOLD_HIGH:
-            r, g, b = VU_COLOR_YELLOW
+            r, g, b = t["vu_color_mid"]
         else:
-            r, g, b = VU_COLOR_RED
+            r, g, b = t["vu_color_high"]
         def _do():
             if self.bar_view:
                 self.bar_view.setFrame_(((BAR_INSET, 5), (bar_width, 8)))
@@ -1887,14 +2083,10 @@ class FloatingWidget:
                 if paused:
                     # Microphone + arrow = "resume dictating" (not confusing play icon)
                     self.pause_btn.setStringValue_("\U0001f399")
-                    self.pause_btn.layer().setBackgroundColor_(
-                        AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.2, 0.6, 0.3, 0.7).CGColor()
-                    )
+                    self.pause_btn.layer().setBackgroundColor_(self._theme_color("pause_resume_bg").CGColor())
                 else:
                     self.pause_btn.setStringValue_("\u23f8")
-                    self.pause_btn.layer().setBackgroundColor_(
-                        AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.4, 0.4, 0.4, 0.6).CGColor()
-                    )
+                    self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
         _on_main(_do)
 
 
@@ -2111,6 +2303,9 @@ class PXDictateApp(rumps.App):
             on_stop=self._on_widget_stop,
         )
         self.prefs = PrefsManager()
+        saved_theme = self.prefs.get("theme")
+        if saved_theme and saved_theme in THEMES:
+            self.widget.set_theme(saved_theme)
         self.lang = self.prefs.get("lang")
         # Load model preference and update global
         self._current_model = self.prefs.get("model")
@@ -2185,6 +2380,15 @@ class PXDictateApp(rumps.App):
         ctrlv_hotkey_item = rumps.MenuItem("  Ctrl+Option+V", callback=lambda s: self._set_hotkey("ctrl_opt_v", s))
         ctrlv_hotkey_item.state = (self.hotkey_mgr.toggle_key == "ctrl_opt_v")
 
+        # Theme submenu
+        current_theme = self.prefs.get("theme")
+        theme_menu = rumps.MenuItem(f"Theme: {THEMES[current_theme]['name']}")
+        for theme_key, theme_data in THEMES.items():
+            titem = rumps.MenuItem(f"  {theme_data['name']}", callback=lambda s, tk=theme_key: self._set_theme(tk, s))
+            if theme_key == current_theme:
+                titem.state = True
+            theme_menu.add(titem)
+
         self.menu = [
             rumps.MenuItem(f"Start Recording ({hotkey_display} / esc to stop)", callback=self.toggle_recording),
             rumps.MenuItem("Pause & Process (tap Control)", callback=self.do_pause_process),
@@ -2204,6 +2408,8 @@ class PXDictateApp(rumps.App):
             rumps.MenuItem(f"Hotkey: {hotkey_display}", callback=None),
             fn_hotkey_item,
             ctrlv_hotkey_item,
+            None,
+            theme_menu,
             None,
             login_item,
             None,
@@ -2477,6 +2683,24 @@ class PXDictateApp(rumps.App):
             ),
         )
 
+    def _set_theme(self, theme_key, sender):
+        """Change the floating pill theme."""
+        self.prefs._prefs["theme"] = theme_key
+        self.prefs.save()
+        if self.widget:
+            self.widget.set_theme(theme_key)
+        # Update menu checkmarks
+        theme_name = THEMES[theme_key]["name"]
+        parent_key = None
+        for key in self.menu:
+            if key and key.startswith("Theme:"):
+                parent_key = key
+                break
+        if parent_key:
+            self.menu[parent_key].title = f"Theme: {theme_name}"
+            for child_key in self.menu[parent_key]:
+                self.menu[parent_key][child_key].state = (child_key.strip() == theme_name)
+
     def _set_hotkey(self, key, sender):
         self.hotkey_mgr.toggle_key = key
         self.widget.set_hotkey_display(key)
@@ -2586,7 +2810,9 @@ class PXDictateApp(rumps.App):
         help_menu = rumps.MenuItem("Help")
         help_menu.add(rumps.MenuItem("Setup Guide...", callback=self.show_setup_guide))
         help_menu.add(rumps.MenuItem("User Guide...", callback=self.show_user_guide))
+        help_menu.add(rumps.MenuItem("Improve Accuracy — Voice Isolation...", callback=self._show_voice_isolation_tip))
         help_menu.add(None)
+        help_menu.add(rumps.MenuItem("Check for Updates...", callback=self._check_for_updates))
         help_menu.add(rumps.MenuItem("Uninstall...", callback=self.show_uninstall))
         return help_menu
 
@@ -2602,6 +2828,79 @@ class PXDictateApp(rumps.App):
     def show_setup_guide(self, sender):
         """Re-show the onboarding wizard."""
         _show_wizard()
+
+    def _show_voice_isolation_tip(self, sender):
+        """Show Voice Isolation tip in a simple alert."""
+        def _do():
+            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            alert = AppKit.NSAlert.alloc().init()
+            alert.setMessageText_("Improve Accuracy — Voice Isolation")
+            alert.setInformativeText_(
+                "macOS Voice Isolation uses Apple's Neural Engine to filter "
+                "background noise, dramatically improving transcription accuracy.\n\n"
+                "How to enable:\n"
+                "1. Start any recording (so the mic icon appears in menu bar)\n"
+                "2. Click the mic icon in the menu bar\n"
+                "3. Select 'Voice Isolation'\n\n"
+                "Or: Control Center \u2192 Mic Mode \u2192 Voice Isolation\n\n"
+                "Requirements: Apple Silicon (M1+), macOS 12 Monterey or later.\n"
+                "Once enabled, it stays on for all apps."
+            )
+            alert.setAlertStyle_(AppKit.NSAlertStyleInformational)
+            alert.addButtonWithTitle_("Got it")
+            alert.runModal()
+        _on_main(_do)
+
+    def _check_for_updates(self, sender):
+        """Check GitHub for newer release, compare with APP_VERSION."""
+        def _do_check():
+            try:
+                url = f"https://api.github.com/repos/pxinnovative/px-dictate/releases/latest"
+                req = urllib.request.Request(url, headers={"User-Agent": APP_NAME})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode())
+                remote_tag = data.get("tag_name", "").lstrip("v")
+                html_url = data.get("html_url", APP_GITHUB + "/releases")
+
+                if not remote_tag:
+                    self._show_update_alert("Could not determine latest version.", None)
+                    return
+
+                # Simple semantic version comparison
+                local_parts = [int(x) for x in APP_VERSION.split(".")]
+                remote_parts = [int(x) for x in remote_tag.split(".")]
+                if remote_parts > local_parts:
+                    self._show_update_alert(
+                        f"New version available: v{remote_tag}\nYou have: v{APP_VERSION}",
+                        html_url,
+                    )
+                else:
+                    self._show_update_alert(
+                        f"You're up to date! (v{APP_VERSION})", None
+                    )
+            except Exception as e:
+                _log.warning("Update check failed: %s", e)
+                self._show_update_alert(f"Could not check for updates.\n{e}", None)
+        threading.Thread(target=_do_check, daemon=True).start()
+
+    def _show_update_alert(self, message, download_url):
+        """Show update check result as a native alert."""
+        def _do():
+            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            alert = AppKit.NSAlert.alloc().init()
+            alert.setMessageText_("Check for Updates")
+            alert.setInformativeText_(message)
+            alert.setAlertStyle_(AppKit.NSAlertStyleInformational)
+            if download_url:
+                alert.addButtonWithTitle_("Download")
+                alert.addButtonWithTitle_("Later")
+                result = alert.runModal()
+                if result == AppKit.NSAlertFirstButtonReturn:
+                    webbrowser.open(download_url)
+            else:
+                alert.addButtonWithTitle_("OK")
+                alert.runModal()
+        _on_main(_do)
 
     def show_user_guide(self, sender):
         """Show user guide with bold headers, bullets, and formatted text."""
@@ -2854,7 +3153,7 @@ class PXDictateApp(rumps.App):
         rumps.notification(
             "PX Dictate",
             f"{entry.date_str} {entry.time_str} — Copied!",
-            entry.text[:300],
+            "Text copied to clipboard",
             sound=False,
         )
 
@@ -2980,10 +3279,6 @@ class PXDictateApp(rumps.App):
         self._hold_active = False
         self.hotkey_mgr.recording_active = False
         _recording_active_ref[0] = False
-        self._set_title("⏳")
-        play_sound("stop")
-        self.widget.set_status("🔄 Transcribing...")
-        self.widget.update_level(0)
 
         for item in self.menu.values():
             if hasattr(item, 'title') and 'Recording' in item.title:
@@ -2992,6 +3287,27 @@ class PXDictateApp(rumps.App):
 
         remaining = list(self.frames)
         self.frames = []
+
+        # Check minimum duration — discard too-short recordings to avoid Whisper hallucinations
+        total_frames = len(remaining)
+        if self.session:
+            total_frames += len(self.session.all_frames)
+        duration_secs = total_frames * CHUNK / SAMPLE_RATE
+        if duration_secs < MIN_RECORDING_SECS:
+            _log.info("Recording too short (%.1fs < %.1fs) — discarded", duration_secs, MIN_RECORDING_SECS)
+            play_sound("stop")
+            self.widget.set_status("Too short — try again")
+            self.widget.update_level(0)
+            self._set_title("PX Dictate")
+            if self.session:
+                self.session = None
+            threading.Timer(1.5, self.widget.collapse).start()
+            return
+
+        self._set_title("⏳")
+        play_sound("stop")
+        self.widget.set_status("🔄 Transcribing...")
+        self.widget.update_level(0)
         seg_time = datetime.datetime.now()  # capture recording-end time before whisper
 
         if self.session:

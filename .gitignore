@@ -28,3 +28,8 @@ preferences.json
 history.json
 PXDictate.iconset/
 generate_icon.py
+
+# Internal strategy/planning docs (NEVER publish)
+LAUNCH-STRATEGY.md
+*-strategy.md
+*-strategy-*.md
