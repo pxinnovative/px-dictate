@@ -149,7 +149,11 @@ SENSITIVITY = float(os.environ.get("PX_DICTATE_SENSITIVITY", "8.0"))
 DEFAULT_LANG = os.environ.get("PX_DICTATE_LANG", "auto")
 HISTORY_MAX = 10
 
-MIN_RECORDING_SECS = 1.5  # discard recordings shorter than this to avoid Whisper hallucinations
+MIN_RECORDING_SECS = 2.0  # discard recordings shorter than this to avoid Whisper hallucinations
+
+SILENCE_TIMEOUT = 20  # seconds of silence before auto-cancel
+SILENCE_COUNTDOWN = 3  # countdown seconds before cancel
+SILENCE_THRESHOLD = 0.02  # audio level below this = silence
 
 FN_FLAG = 0x800000
 FN_HOLD_THRESHOLD = 0.5
@@ -161,6 +165,8 @@ Q_KEYCODE = 12
 R_KEYCODE = 15
 CMD_FLAG = 0x100000
 V_KEYCODE = 9
+F5_KEYCODE = 96
+DOUBLE_TAP_THRESHOLD = 0.4  # seconds for double-tap detection
 CTRL_TAP_THRESHOLD = 1.0
 
 WHISPER_THREADS = 8
@@ -220,6 +226,8 @@ THEMES = {
         "dot_hover_light": (0.0, 0.0, 0.0),
         "text_color": (1.0, 1.0, 1.0),
         "hint_text_color": (0.95, 0.95, 0.95),
+        "text_color_light": (0.0, 0.0, 0.0),
+        "hint_text_color_light": (0.15, 0.15, 0.15),
         "button_bg": (0.25, 0.25, 0.25, 0.85),
         "button_bg_hover": (0.25, 0.25, 0.25, 0.95),
         "stop_bg": (1.0, 0.15, 0.15, 0.9),
@@ -230,8 +238,10 @@ THEMES = {
         "vu_color_mid": (1.0, 0.85, 0.0),
         "vu_color_high": (1.0, 0.15, 0.15),
         "key_bg": (0.3, 0.3, 0.3, 0.9),
+        "key_bg_light": (0.75, 0.75, 0.75, 0.6),
         "border_width": 1,
         "border_color": (0.4, 0.4, 0.4, 0.5),
+        "shadow_radius": 0,
     },
     "glass": {
         "name": "Glass",
@@ -248,6 +258,8 @@ THEMES = {
         "dot_hover_light": (0.1, 0.1, 0.15),
         "text_color": (1.0, 1.0, 1.0),
         "hint_text_color": (0.92, 0.92, 0.95),
+        "text_color_light": (0.0, 0.0, 0.05),
+        "hint_text_color_light": (0.1, 0.1, 0.15),
         "button_bg": (0.6, 0.6, 0.65, 0.35),
         "button_bg_hover": (0.6, 0.6, 0.65, 0.55),
         "stop_bg": (0.85, 0.35, 0.35, 0.5),
@@ -258,36 +270,42 @@ THEMES = {
         "vu_color_mid": (0.95, 0.88, 0.45),
         "vu_color_high": (0.95, 0.5, 0.45),
         "key_bg": (0.6, 0.6, 0.65, 0.4),
+        "key_bg_light": (0.8, 0.8, 0.85, 0.5),
         "border_width": 1,
         "border_color": (0.8, 0.8, 0.85, 0.3),
+        "shadow_radius": 0,
     },
     "minimal": {
         "name": "Minimal",
         "material": "Popover",
-        "alpha_mini": 0.4,
-        "alpha_hover": 0.7,
-        "alpha_expanded": 0.88,
-        "corner_radius_pill": 5.0,
-        "corner_radius_panel": 6.0,
-        "button_corner": 3.0,
+        "alpha_mini": 0.15,
+        "alpha_hover": 0.4,
+        "alpha_expanded": 0.6,
+        "corner_radius_pill": 20.0,
+        "corner_radius_panel": 26.0,
+        "button_corner": 10.0,
         "dot_dark": (0.5, 0.5, 0.5),
         "dot_light": (0.4, 0.4, 0.4),
         "dot_hover_dark": (0.8, 0.8, 0.8),
         "dot_hover_light": (0.2, 0.2, 0.2),
         "text_color": (0.85, 0.85, 0.85),
         "hint_text_color": (0.7, 0.7, 0.7),
-        "button_bg": (0.35, 0.35, 0.35, 0.45),
-        "button_bg_hover": (0.35, 0.35, 0.35, 0.65),
-        "stop_bg": (0.6, 0.25, 0.25, 0.5),
-        "rec_bg": (0.55, 0.15, 0.15, 0.55),
-        "pause_resume_bg": (0.2, 0.4, 0.25, 0.5),
-        "bar_bg": (0.25, 0.25, 0.25, 0.3),
+        "text_color_light": (0.1, 0.1, 0.1),
+        "hint_text_color_light": (0.25, 0.25, 0.25),
+        "button_bg": (0.4, 0.4, 0.4, 0.25),
+        "button_bg_hover": (0.4, 0.4, 0.4, 0.45),
+        "stop_bg": (0.6, 0.25, 0.25, 0.3),
+        "rec_bg": (0.55, 0.15, 0.15, 0.35),
+        "pause_resume_bg": (0.2, 0.4, 0.25, 0.3),
+        "bar_bg": (0.25, 0.25, 0.25, 0.15),
         "vu_color_low": (0.6, 0.6, 0.6),
         "vu_color_mid": (0.75, 0.75, 0.75),
         "vu_color_high": (0.9, 0.9, 0.9),
         "key_bg": (0.25, 0.25, 0.25, 0.6),
+        "key_bg_light": (0.7, 0.7, 0.7, 0.5),
         "border_width": 0,
         "border_color": (0.5, 0.5, 0.5, 0.0),
+        "shadow_radius": 8.0,
     },
 }
 
@@ -329,7 +347,7 @@ class PrefsManager:
         "save_dir": DEFAULT_SAVE_DIR,
         "hotkey": "fn",
         "record_system_sounds": True,
-        "theme": "classic",
+        "theme": "glass",
     }
 
     def __init__(self):
@@ -1312,13 +1330,14 @@ class RecordingSession:
 # ── Hotkey Manager ──────────────────────────────────────────────────────
 
 class HotkeyManager:
-    def __init__(self, on_toggle, on_pause, on_hold_start, on_hold_stop, on_hold_msg, on_stop, on_quit=None, on_restart=None):
+    def __init__(self, on_toggle, on_pause, on_hold_start, on_hold_stop, on_hold_msg, on_stop, on_cancel=None, on_quit=None, on_restart=None):
         self.on_toggle = on_toggle
         self.on_pause = on_pause
         self.on_hold_start = on_hold_start
         self.on_hold_stop = on_hold_stop
         self.on_hold_msg = on_hold_msg
         self.on_stop = on_stop
+        self.on_cancel = on_cancel or on_stop  # fallback to stop if no cancel handler
         self.on_quit = on_quit
         self.on_restart = on_restart
         self._fn_down_time = None
@@ -1328,6 +1347,9 @@ class HotkeyManager:
         self._ctrl_had_keydown = False
         self.toggle_key = "fn"
         self.recording_active = False
+        self._last_opt_up_time = 0  # for double-tap Option detection
+        self._opt_was_down = False
+        self._is_transcribing = lambda: False  # overridden by app
 
     def set_hold_paused(self, paused):
         self._fn_hold_paused = paused
@@ -1385,8 +1407,8 @@ class HotkeyManager:
         if event_type == Quartz.kCGEventKeyDown:
             keycode = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
 
-            if keycode == ESC_KEYCODE and self.recording_active:
-                self.on_stop()
+            if keycode == ESC_KEYCODE and (self.recording_active or self._is_transcribing()):
+                self.on_cancel()
                 return None
 
             # Cmd+R = restart, Cmd+Q = quit — only when OUR app is frontmost
@@ -1409,6 +1431,10 @@ class HotkeyManager:
                 if ctrl and opt and keycode == V_KEYCODE:
                     self.on_toggle()
                     return None
+
+            if self.toggle_key == "f5" and keycode == F5_KEYCODE:
+                self.on_toggle()
+                return None
             return event
 
         if event_type == Quartz.kCGEventFlagsChanged:
@@ -1448,6 +1474,20 @@ class HotkeyManager:
                 self._ctrl_had_keydown = False
                 if solo and held < CTRL_TAP_THRESHOLD:
                     self.on_pause()
+
+            # Double-tap Option detection
+            if self.toggle_key == "double_opt":
+                opt_down = bool(flags & OPT_FLAG)
+                if opt_down and not self._opt_was_down:
+                    self._opt_was_down = True
+                elif not opt_down and self._opt_was_down:
+                    self._opt_was_down = False
+                    now = time.time()
+                    if now - self._last_opt_up_time < DOUBLE_TAP_THRESHOLD:
+                        self._last_opt_up_time = 0
+                        self.on_toggle()
+                    else:
+                        self._last_opt_up_time = now
 
         return event
 
@@ -1506,7 +1546,7 @@ class FloatingWidget:
         self._hovering = False
         self._current_hotkey = "fn"
         self._last_dark = None
-        self._theme_name = "classic"
+        self._theme_name = "glass"
         _on_main(self._create_window)
 
     def set_recording_callbacks(self, on_pause, on_stop):
@@ -1526,11 +1566,19 @@ class FloatingWidget:
 
     def _get_theme(self):
         """Return current theme dict."""
-        return THEMES.get(self._theme_name, THEMES["classic"])
+        return THEMES.get(self._theme_name, THEMES["glass"])
 
     def _theme_color(self, key, alpha=1.0):
-        """Return NSColor from theme key."""
+        """Return NSColor from theme key, with light mode variants."""
         t = self._get_theme()
+        # Use light mode variant if available and in light mode
+        if not _is_dark_mode() and key in ("text_color", "hint_text_color", "key_bg"):
+            light_key = key + "_light"
+            if light_key in t:
+                vals = t[light_key]
+                if len(vals) == 4:
+                    return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(vals[0], vals[1], vals[2], vals[3])
+                return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(vals[0], vals[1], vals[2], alpha)
         vals = t.get(key, (0.5, 0.5, 0.5))
         if len(vals) == 4:
             return AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(vals[0], vals[1], vals[2], vals[3])
@@ -1573,6 +1621,18 @@ class FloatingWidget:
                 )
             else:
                 self.vibrancy.layer().setBorderColor_(AppKit.NSColor.clearColor().CGColor())
+            # Update shadow glow
+            shadow_r = t.get("shadow_radius", 0)
+            content = self.window.contentView()
+            if shadow_r > 0:
+                content.layer().setShadowOpacity_(0.5)
+                content.layer().setShadowRadius_(shadow_r)
+                content.layer().setShadowOffset_(Quartz.CGSizeMake(0, 0))
+                content.layer().setShadowColor_(
+                    Quartz.CGColorCreateGenericGray(0.0, 1.0)
+                )
+            else:
+                content.layer().setShadowOpacity_(0)
             # Update opacity
             if self._expanded:
                 self.window.setAlphaValue_(t["alpha_expanded"])
@@ -1685,6 +1745,15 @@ class FloatingWidget:
             self.vibrancy.layer().setBorderColor_(
                 AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(
                     _init_bc[0], _init_bc[1], _init_bc[2], _init_bc[3]).CGColor()
+            )
+        # Apply theme shadow
+        _init_sr = _init_t.get("shadow_radius", 0)
+        if _init_sr > 0:
+            content.layer().setShadowOpacity_(0.5)
+            content.layer().setShadowRadius_(_init_sr)
+            content.layer().setShadowOffset_(Quartz.CGSizeMake(0, 0))
+            content.layer().setShadowColor_(
+                Quartz.CGColorCreateGenericGray(0.0, 1.0)
             )
         content.addSubview_(self.vibrancy)
 
@@ -1915,6 +1984,14 @@ class FloatingWidget:
                 attr1 = self._make_attributed([
                     ("Tap ", False), (" fn ", True), (" or click \u2192", False),
                 ], size=11, center=False)
+            elif self._current_hotkey == "f5":
+                attr1 = self._make_attributed([
+                    ("Press ", False), (" F5 ", True), (" or click \u2192", False),
+                ], size=11, center=False)
+            elif self._current_hotkey == "double_opt":
+                attr1 = self._make_attributed([
+                    ("Double-tap ", False), (" \u2325 ", True), (" or click \u2192", False),
+                ], size=10, center=False)
             else:
                 attr1 = self._make_attributed([
                     ("Press ", False), (" Ctrl+Opt+V ", True), (" or \u2192", False),
@@ -2038,7 +2115,7 @@ class FloatingWidget:
                     break
                 toggle = not toggle
                 if toggle:
-                    self._set_label("🎙️ Recording — esc to stop")
+                    self._set_label("🎙️ Recording — esc to cancel")
                 else:
                     self._set_label("🎙️ Ctrl to pause")
         threading.Thread(target=_run, daemon=True).start()
@@ -2336,6 +2413,9 @@ class PXDictateApp(rumps.App):
         self._guide_window = None
         self._guide_btn = None
         self._cmd_q_monitor = None
+        self._transcribing = False
+        self._speech_detected = False
+        self._silence_monitor_active = False
 
         self.hotkey_mgr = HotkeyManager(
             on_toggle=self._on_toggle,
@@ -2344,13 +2424,15 @@ class PXDictateApp(rumps.App):
             on_hold_stop=self._on_hold_stop,
             on_hold_msg=self._on_hold_msg,
             on_stop=self._on_stop,
+            on_cancel=self.cancel_recording,
             on_quit=self._on_quit,
             on_restart=self._on_restart,
         )
         self.hotkey_mgr.toggle_key = self.prefs.get("hotkey")
+        self.hotkey_mgr._is_transcribing = lambda: self._transcribing
 
         # Build menu labels from saved prefs
-        hotkey_display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V"}.get(
+        hotkey_display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "Double-tap ⌥"}.get(
             self.prefs.get("hotkey"), "Hold fn"
         )
         login_label = "  Launch at Login: ON" if _is_launch_at_login() else "  Launch at Login: OFF"
@@ -2379,6 +2461,10 @@ class PXDictateApp(rumps.App):
         fn_hotkey_item.state = (self.hotkey_mgr.toggle_key == "fn")
         ctrlv_hotkey_item = rumps.MenuItem("  Ctrl+Option+V", callback=lambda s: self._set_hotkey("ctrl_opt_v", s))
         ctrlv_hotkey_item.state = (self.hotkey_mgr.toggle_key == "ctrl_opt_v")
+        f5_hotkey_item = rumps.MenuItem("  F5 (external keyboards)", callback=lambda s: self._set_hotkey("f5", s))
+        f5_hotkey_item.state = (self.hotkey_mgr.toggle_key == "f5")
+        double_opt_item = rumps.MenuItem("  Double-tap ⌥ Option", callback=lambda s: self._set_hotkey("double_opt", s))
+        double_opt_item.state = (self.hotkey_mgr.toggle_key == "double_opt")
 
         # Theme submenu
         current_theme = self.prefs.get("theme")
@@ -2408,6 +2494,8 @@ class PXDictateApp(rumps.App):
             rumps.MenuItem(f"Hotkey: {hotkey_display}", callback=None),
             fn_hotkey_item,
             ctrlv_hotkey_item,
+            f5_hotkey_item,
+            double_opt_item,
             None,
             theme_menu,
             None,
@@ -2492,7 +2580,10 @@ class PXDictateApp(rumps.App):
                 data = self.audio_mgr.read_chunk()
                 if data:
                     self.frames.append(data)
-                    self.widget.update_level(rms_level(data))
+                    level = rms_level(data)
+                    self.widget.update_level(level)
+                    if level > SILENCE_THRESHOLD and not self._speech_detected:
+                        self._speech_detected = True
                 else:
                     time.sleep(0.01)
             else:
@@ -2705,7 +2796,7 @@ class PXDictateApp(rumps.App):
         self.hotkey_mgr.toggle_key = key
         self.widget.set_hotkey_display(key)
         self.prefs.set("hotkey", key)
-        display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V"}
+        display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "Double-tap ⌥"}
         for item in self.menu.values():
             if hasattr(item, 'title') and item.title.startswith("Hotkey:"):
                 item.title = f"Hotkey: {display.get(key, key)}"
@@ -2719,7 +2810,7 @@ class PXDictateApp(rumps.App):
                     item.title = f"Start Recording ({hk} / esc to stop)"
                 break
         # Update checkmarks
-        hotkey_names = {"fn": "Hold fn (default)", "ctrl_opt_v": "Ctrl+Option+V"}
+        hotkey_names = {"fn": "Hold fn (default)", "ctrl_opt_v": "Ctrl+Option+V", "f5": "F5 (external keyboards)", "double_opt": "Double-tap ⌥ Option"}
         for item in self.menu.values():
             if hasattr(item, 'title'):
                 t = item.title.strip()
@@ -3245,7 +3336,7 @@ class PXDictateApp(rumps.App):
                 play_sound("pasted")
             if self.paused:
                 preview = text[:20] + "..." if len(text) > 20 else text
-                self.widget.set_status(f"⏸️ ✅ {preview} — Ctrl resume")
+                self.widget.set_status("⏸️ ✅ Segment saved — Ctrl resume")
         elif self.paused:
             self.widget.set_status("⏸️ Paused — Ctrl resume")
 
@@ -3269,10 +3360,43 @@ class PXDictateApp(rumps.App):
         self.widget.move_to_active_screen()
         self.widget.expand()
         self._collecting = True
+        self._speech_detected = False
+        self._silence_monitor_active = True
+        threading.Thread(target=self._silence_monitor, daemon=True).start()
+
+    def cancel_recording(self):
+        """Cancel recording — discard everything, don't transcribe."""
+        self._transcribing = False
+        self._silence_monitor_active = False
+        if not self.recording:
+            return
+        self.recording = False
+        self.paused = False
+        self._collecting = False
+        self._hold_active = False
+        self.hotkey_mgr.recording_active = False
+        _recording_active_ref[0] = False
+
+        for item in self.menu.values():
+            if hasattr(item, 'title') and 'Recording' in item.title:
+                item.title = "Start Recording (fn / esc to stop)"
+                break
+
+        self.frames = []
+        if self.session:
+            self.session = None
+
+        _log.info("Recording cancelled by user (ESC)")
+        play_sound("stop")
+        self.widget.set_status("\U0001f6ab Cancelled")
+        self.widget.update_level(0)
+        self._set_title("🎙️")
+        threading.Timer(1.5, self.widget.collapse).start()
 
     def stop_recording(self):
         if not self.recording:
             return
+        self._silence_monitor_active = False
         self.recording = False
         self.paused = False
         self._collecting = False
@@ -3298,7 +3422,7 @@ class PXDictateApp(rumps.App):
             play_sound("stop")
             self.widget.set_status("Too short — try again")
             self.widget.update_level(0)
-            self._set_title("PX Dictate")
+            self._set_title("🎙️")
             if self.session:
                 self.session = None
             threading.Timer(1.5, self.widget.collapse).start()
@@ -3307,6 +3431,7 @@ class PXDictateApp(rumps.App):
         self._set_title("⏳")
         play_sound("stop")
         self.widget.set_status("🔄 Transcribing...")
+        self._transcribing = True
         self.widget.update_level(0)
         seg_time = datetime.datetime.now()  # capture recording-end time before whisper
 
@@ -3319,6 +3444,27 @@ class PXDictateApp(rumps.App):
         else:
             # No new frames — but wait for any in-flight pause segments to finish
             threading.Thread(target=self._wait_and_finalize, daemon=True).start()
+
+    def _silence_monitor(self):
+        """Monitor for silence at recording start. Auto-cancel if no speech for SILENCE_TIMEOUT seconds."""
+        start = time.time()
+        while self._silence_monitor_active and self.recording:
+            time.sleep(0.5)
+            elapsed = time.time() - start
+            if self._speech_detected:
+                self._silence_monitor_active = False
+                return
+            if elapsed >= SILENCE_TIMEOUT:
+                # Start countdown
+                for i in range(SILENCE_COUNTDOWN, 0, -1):
+                    if not self._silence_monitor_active or self._speech_detected:
+                        return
+                    self.widget.set_status(f"\U0001f507 No speech detected \u2014 cancelling in {i}...")
+                    time.sleep(1)
+                if self._silence_monitor_active and not self._speech_detected:
+                    _log.info("Auto-cancel: no speech detected for %ds", SILENCE_TIMEOUT)
+                    self.cancel_recording()
+                return
 
     def _wait_and_finalize(self):
         """Wait for in-flight _process_segment threads, then finalize."""
@@ -3366,6 +3512,7 @@ class PXDictateApp(rumps.App):
         self._finalize_session()
 
     def _finalize_session(self):
+        self._transcribing = False
         session = self.session
         self.session = None
 
@@ -3385,8 +3532,7 @@ class PXDictateApp(rumps.App):
 
         if session and session.full_text:
             full = session.full_text
-            preview = full[:20] + "..." if len(full) > 20 else full
-            self.widget.set_status(f"✅ {preview}")
+            self.widget.set_status("✅ Transcript copied!")
             self._add_to_history(full, session=session)
         else:
             play_sound("error")
