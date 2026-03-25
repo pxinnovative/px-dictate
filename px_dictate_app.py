@@ -151,8 +151,8 @@ HISTORY_MAX = 10
 
 MIN_RECORDING_SECS = 2.0  # discard recordings shorter than this to avoid Whisper hallucinations
 
-SILENCE_TIMEOUT = 20  # seconds of silence before auto-cancel
-SILENCE_COUNTDOWN = 3  # countdown seconds before cancel
+SILENCE_TIMEOUT = 10  # seconds of silence before auto-cancel countdown
+SILENCE_COUNTDOWN = 5  # countdown seconds before cancel (5,4,3,2,1)
 SILENCE_THRESHOLD = 0.02  # audio level below this = silence
 
 FN_FLAG = 0x800000
