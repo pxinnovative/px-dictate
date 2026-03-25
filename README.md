@@ -26,7 +26,7 @@ Perfect for vibecoding, writing, meetings, brainstorming, journaling — anythin
 - **Recommended:** 16GB RAM, Apple Silicon (M1/M2/M3/M4) for fastest transcription
 - ~500MB disk space for the Whisper model
 
-> **Older or low-RAM Mac?** A future update (v1.1) will add an OpenAI Whisper API option — cloud-based transcription at ~$0.006/minute. All you'll need is an OpenAI account.
+> **Older or low-RAM Mac?** A future update will add an OpenAI Whisper API option — cloud-based transcription at ~$0.006/minute. All you'll need is an OpenAI account.
 
 ## First Run — Permissions
 
@@ -134,7 +134,7 @@ python3 setup.py py2app
 | **Requires** | 8GB+ RAM, whisper-cpp | OpenAI API key |
 | **Internet** | Not needed | Required |
 
-> Note: OpenAI API option is coming in v1.1. Today, everything runs locally.
+> Note: OpenAI API option is planned for a future release. Today, everything runs 100% locally.
 
 ## Why PX Dictate?
 
@@ -159,13 +159,29 @@ This is the first open-source project from PX Innovative. We're building in publ
 
 ## Roadmap
 
-- [x] Model selector (tiny/base/small/medium/large — choose quality vs speed)
-- [x] One-command installer (`install.sh` — interactive, step-by-step)
-- [ ] Custom vocabulary / domain-specific terms
-- [ ] Theme system (Classic / Glass / Minimal skins)
+### v1.1 — Completed
+- [x] Theme system — 3 themes: Glass (default), Classic, Minimal with light/dark mode support
+- [x] Minimum recording duration — prevents Whisper hallucinations on short recordings
+- [x] Voice Isolation tip — onboarding wizard page + Help menu guidance
+- [x] Check for Updates — compares against GitHub Releases
+- [x] Configurable hotkeys — fn, Ctrl+Opt+V, F5, Double-tap Option
+- [x] ESC to cancel — discards recording without transcribing
+- [x] Silence auto-cancel — 20s of no speech triggers countdown and auto-cancel
+- [x] Light mode support — readable text in macOS light appearance
+
+### v1.2 — In Progress
+- [ ] Multi-mode hotkeys — hold, double-tap, and single-tap-stop on every key ([#15](../../issues/15))
+- [ ] Transcript preview in pill — 2-line animated text ([#16](../../issues/16))
+- [ ] Audio waveform visualization — animated alternative to VU meter ([#14](../../issues/14))
+- [ ] Custom vocabulary / domain-specific terms ([#5](../../issues/5))
+- [ ] Onboarding wizard redesign ([#6](../../issues/6))
+- [ ] Double-tap fn trigger ([#12](../../issues/12))
+- [ ] Wake word detection — "Hey Dictate" ([#13](../../issues/13))
+- [ ] Self-contained .dmg installer ([#1](../../issues/1))
+
+### Future
 - [ ] OpenAI Whisper API fallback for older Macs
 - [ ] Homebrew cask (`brew install --cask px-dictate`)
-- [ ] .dmg installer
 - [ ] Code signing & notarization (Apple Developer)
 - [ ] Mac App Store release
 
