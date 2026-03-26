@@ -2,11 +2,12 @@
 """
 PX Dictate — Free macOS voice-to-text powered by local Whisper AI.
 
-Hotkeys (configurable via menu):
-- fn short press (0.5-1.5s + release): Toggle start/stop recording
-- fn long hold (1.5s+ without releasing): Hold-to-record mode (release = stop)
+Hotkeys (configurable via menu — fn, double-Option, F5, Ctrl+Opt+V):
+- Double-tap hotkey: Start recording (tap again to stop)
+- Hold hotkey 1.5s+: Hold-to-record mode (release = stop)
+- Single tap while recording: Stop and transcribe
 - Tap Control (solo): Pause → process segment, tap again to resume
-- ESC: Stop recording
+- ESC: Cancel recording or transcription
 - Click mini pill: Expand hint → click again to start
 - Click widget during recording: Stop recording
 
@@ -155,9 +156,26 @@ SILENCE_TIMEOUT = 10  # seconds of silence before auto-cancel countdown
 SILENCE_COUNTDOWN = 5  # countdown seconds before cancel (5,4,3,2,1)
 SILENCE_THRESHOLD = 0.02  # audio level below this = silence
 
+# Known Whisper hallucination phrases (generated from silence/low audio)
+WHISPER_HALLUCINATIONS = {
+    "gracias por ver el video.", "gracias por ver el video",
+    "gracias.", "gracias", "gracias por ver.", "gracias por ver",
+    "thank you for watching.", "thank you for watching",
+    "thanks for watching.", "thanks for watching",
+    "thank you.", "thank you",
+    "thanks for watching this video.", "thanks for watching this video",
+    "sous-titres réalisés par la communauté d'amara.org",
+    "subtítulos realizados por la comunidad de amara.org",
+    "amara.org",
+    "you",
+    "bye.", "bye",
+    "...",
+    "",
+}
+
 FN_FLAG = 0x800000
-FN_HOLD_THRESHOLD = 0.5
-FN_LONG_HOLD = 1.5
+FN_HOLD_THRESHOLD = 0.4   # short hold: 0.4s–0.9s = start recording (release = keep recording)
+FN_LONG_HOLD = 1.2        # long hold: 1.2s+ = hold-to-record (release = stop)
 CTRL_FLAG = 0x40000
 OPT_FLAG = 0x80000
 ESC_KEYCODE = 53
@@ -636,9 +654,13 @@ class OnboardingWizard:
             "subtitle": "Recording, pausing, and keyboard shortcuts.",
             "body": (
                 "RECORDING:\n\n"
-                "\u2022 Tap fn to start/stop recording\n"
-                "\u2022 Hold fn for 1.5s+ for hold-to-record (release = stop)\n"
+                "\u2022 Double-tap fn to start recording\n"
+                "\u2022 Hold fn for 0.5\u20131s to start recording\n"
+                "\u2022 Hold fn for 1.2s+ for hold-to-record (release = stop)\n"
                 "\u2022 Or click the floating pill \u2192 click REC\n\n"
+                "STOPPING:\n\n"
+                "\u2022 Tap fn once to stop and transcribe\n"
+                "\u2022 Press ESC to cancel (discards recording)\n\n"
                 "PAUSE & SEGMENTS:\n\n"
                 "\u2022 Tap Control to pause \u2014 audio is transcribed instantly\n"
                 "\u2022 Tap Control again to resume a new segment\n"
@@ -647,11 +669,16 @@ class OnboardingWizard:
                 "\u2022 Transcribed text is automatically pasted into your active app\n"
                 "\u2022 Disable this in the menu if you prefer manual pasting\n\n"
                 "KEYBOARD SHORTCUTS:\n\n"
-                "fn (tap)        \u2014 Toggle recording\n"
-                "fn (hold 1.5s)  \u2014 Hold-to-record\n"
-                "Control (tap)   \u2014 Pause & process segment\n"
-                "ESC             \u2014 Stop recording\n"
-                "\u2318Q              \u2014 Quit PX Dictate"
+                "fn (double-tap)    \u2014 Start recording\n"
+                "fn (hold <1s)      \u2014 Start recording\n"
+                "fn (hold 1.2s+)    \u2014 Hold-to-record\n"
+                "fn (tap while rec) \u2014 Stop & transcribe\n"
+                "Control (tap)      \u2014 Pause & process segment\n"
+                "ESC                \u2014 Cancel (discard)\n"
+                "\u2318Q               \u2014 Quit PX Dictate\n"
+                "\u2318R               \u2014 Restart PX Dictate\n\n"
+                "You can change the hotkey in the menu (fn, Option, F5,\n"
+                "Ctrl+Opt+V, or any custom key)."
             ),
             "emoji": "\u2328\ufe0f",
         },
@@ -1340,19 +1367,42 @@ class HotkeyManager:
         self.on_cancel = on_cancel or on_stop  # fallback to stop if no cancel handler
         self.on_quit = on_quit
         self.on_restart = on_restart
-        self._fn_down_time = None
-        self._fn_hold_mode = False
-        self._fn_hold_paused = False
+        # Unified hotkey state machine
+        self._key_down_time = None       # when the hotkey was pressed
+        self._key_hold_mode = False      # True if hold-to-record is active
+        self._key_hold_paused = False    # True if hold was paused
+        self._last_key_up_time = 0       # for double-tap detection
+        self._key_was_down = False       # tracks key down state
+        self._custom_keycode = None      # keycode for custom hotkey
+        self._custom_is_modifier = False  # True if custom key is a modifier (detected via FlagsChanged)
+        self._custom_flag = 0            # modifier flag for custom key (if modifier)
+        self._learning_mode = False      # True when waiting for user to press a key
+        self._on_learned = None          # callback after key is learned
+        # Ctrl pause key (separate from hotkey)
         self._ctrl_down_time = None
         self._ctrl_had_keydown = False
         self.toggle_key = "fn"
         self.recording_active = False
-        self._last_opt_up_time = 0  # for double-tap Option detection
-        self._opt_was_down = False
         self._is_transcribing = lambda: False  # overridden by app
 
     def set_hold_paused(self, paused):
-        self._fn_hold_paused = paused
+        self._key_hold_paused = paused
+
+    def start_learning(self, callback):
+        """Enter learn mode — next key press becomes the custom hotkey."""
+        self._learning_mode = True
+        self._on_learned = callback
+
+    def _finish_learning(self, keycode, is_modifier, flag):
+        """Store the learned key and exit learn mode."""
+        self._learning_mode = False
+        self._custom_keycode = keycode
+        self._custom_is_modifier = is_modifier
+        self._custom_flag = flag
+        self.toggle_key = "custom"
+        if self._on_learned:
+            self._on_learned(keycode, is_modifier, flag)
+            self._on_learned = None
 
     def start(self):
         self._tap_active = False
@@ -1362,7 +1412,8 @@ class HotkeyManager:
         """Create the CGEventTap. Returns True if successful."""
         event_mask = (
             Quartz.CGEventMaskBit(Quartz.kCGEventFlagsChanged) |
-            Quartz.CGEventMaskBit(Quartz.kCGEventKeyDown)
+            Quartz.CGEventMaskBit(Quartz.kCGEventKeyDown) |
+            Quartz.CGEventMaskBit(Quartz.kCGEventKeyUp)
         )
         tap = Quartz.CGEventTapCreate(
             Quartz.kCGSessionEventTap,
@@ -1394,19 +1445,87 @@ class HotkeyManager:
     def _start_hold_timer(self):
         def _check():
             time.sleep(FN_LONG_HOLD)
-            if self._fn_down_time is not None and not self._fn_hold_mode:
-                self._fn_hold_mode = True
-                self._fn_hold_paused = False
+            if self._key_down_time is not None and not self._key_hold_mode:
+                self._key_hold_mode = True
+                self._key_hold_paused = False
                 self.on_hold_start()
                 self.on_hold_msg()
         threading.Thread(target=_check, daemon=True).start()
 
+    def _on_hotkey_down(self):
+        """Called when the configured hotkey is pressed down."""
+        if self._key_down_time is None:
+            self._key_down_time = time.time()
+            self._key_hold_mode = False
+            self._start_hold_timer()
+
+    def _on_hotkey_up(self):
+        """Called when the configured hotkey is released."""
+        if self._key_down_time is None:
+            return
+        held = time.time() - self._key_down_time
+        was_hold = self._key_hold_mode
+        was_paused = self._key_hold_paused
+        self._key_down_time = None
+        self._key_hold_mode = False
+
+        if was_hold and not was_paused:
+            # Was in hold-to-record mode — release = stop
+            self.on_hold_stop()
+            return
+        if was_hold and was_paused:
+            # Hold was paused — ignore release
+            return
+
+        if self.recording_active:
+            # Already recording — single tap = stop and transcribe
+            self.on_stop()
+            return
+
+        # Not recording — check for double-tap or short hold
+        now = time.time()
+        if now - self._last_key_up_time < DOUBLE_TAP_THRESHOLD:
+            # Double-tap detected — start recording
+            self._last_key_up_time = 0
+            self.on_toggle()
+        elif held >= FN_HOLD_THRESHOLD:
+            # Short hold (0.5s-1.0s) — start recording (toggle)
+            self._last_key_up_time = 0
+            self.on_toggle()
+        else:
+            # Very short tap — store for potential double-tap
+            self._last_key_up_time = now
+
     def _handler(self, proxy, event_type, event, refcon):
         flags = Quartz.CGEventGetFlags(event)
+
+        # Learn mode — capture the next key press as custom hotkey
+        if self._learning_mode:
+            if event_type == Quartz.kCGEventKeyDown:
+                keycode = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
+                if bool(flags & CMD_FLAG):
+                    return event  # ignore Cmd combos
+                if keycode == ESC_KEYCODE:
+                    # ESC cancels learn mode
+                    self._learning_mode = False
+                    if self._on_learned:
+                        self._on_learned(None, None, None)  # signal cancelled
+                        self._on_learned = None
+                    return None
+                self._finish_learning(keycode, False, 0)
+                return None
+            elif event_type == Quartz.kCGEventFlagsChanged:
+                # Learn modifier keys (not Ctrl which is pause, not Cmd which is quit/restart)
+                for mod_flag in [FN_FLAG, OPT_FLAG]:
+                    if bool(flags & mod_flag):
+                        self._finish_learning(0, True, mod_flag)
+                        return None
+            return event
 
         if event_type == Quartz.kCGEventKeyDown:
             keycode = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
 
+            # ESC = cancel recording or transcription
             if keycode == ESC_KEYCODE and (self.recording_active or self._is_transcribing()):
                 self.on_cancel()
                 return None
@@ -1422,48 +1541,87 @@ class HotkeyManager:
                         self.on_quit()
                         return None
 
+            # Track if a real key was pressed during Ctrl hold (for Ctrl solo detection)
             if self._ctrl_down_time is not None:
                 self._ctrl_had_keydown = True
 
+            # Ctrl+Opt+V combo — toggle on keyDown (hold/double-tap not applicable for 3-key combo)
             if self.toggle_key == "ctrl_opt_v":
                 ctrl = bool(flags & CTRL_FLAG)
                 opt = bool(flags & OPT_FLAG)
                 if ctrl and opt and keycode == V_KEYCODE:
-                    self.on_toggle()
+                    if self.recording_active:
+                        self.on_stop()
+                    else:
+                        self.on_toggle()
                     return None
 
+            # F5 key — unified state machine via keyDown (down event)
             if self.toggle_key == "f5" and keycode == F5_KEYCODE:
-                self.on_toggle()
+                if not self._key_was_down:
+                    self._key_was_down = True
+                    self._on_hotkey_down()
                 return None
+
+            # Custom key (regular key)
+            if self.toggle_key == "custom" and not self._custom_is_modifier:
+                if keycode == self._custom_keycode:
+                    if not self._key_was_down:
+                        self._key_was_down = True
+                        self._on_hotkey_down()
+                    return None
+
+            return event
+
+        if event_type == Quartz.kCGEventKeyUp:
+            keycode = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
+            # F5 key — unified state machine via keyUp (up event)
+            if self.toggle_key == "f5" and keycode == F5_KEYCODE:
+                self._key_was_down = False
+                self._on_hotkey_up()
+                return None
+            # Custom key (regular key) — keyUp
+            if self.toggle_key == "custom" and not self._custom_is_modifier:
+                if keycode == self._custom_keycode:
+                    self._key_was_down = False
+                    self._on_hotkey_up()
+                    return None
             return event
 
         if event_type == Quartz.kCGEventFlagsChanged:
-            fn_down = bool(flags & FN_FLAG)
             ctrl_down = bool(flags & CTRL_FLAG)
 
+            # Map fn key to unified down/up events
             if self.toggle_key == "fn":
-                if fn_down and self._fn_down_time is None:
-                    self._fn_down_time = time.time()
-                    self._fn_hold_mode = False
-                    self._start_hold_timer()
+                fn_down = bool(flags & FN_FLAG)
+                if fn_down and not self._key_was_down:
+                    self._key_was_down = True
+                    self._on_hotkey_down()
+                elif not fn_down and self._key_was_down:
+                    self._key_was_down = False
+                    self._on_hotkey_up()
 
-                elif not fn_down and self._fn_down_time is not None:
-                    held = time.time() - self._fn_down_time
-                    was_hold = self._fn_hold_mode
-                    was_paused = self._fn_hold_paused
-                    self._fn_down_time = None
-                    self._fn_hold_mode = False
+            # Map double_opt (Option key) to unified down/up events
+            elif self.toggle_key == "double_opt":
+                opt_down = bool(flags & OPT_FLAG)
+                if opt_down and not self._key_was_down:
+                    self._key_was_down = True
+                    self._on_hotkey_down()
+                elif not opt_down and self._key_was_down:
+                    self._key_was_down = False
+                    self._on_hotkey_up()
 
-                    if was_hold and not was_paused:
-                        self.on_hold_stop()
-                    elif was_hold and was_paused:
-                        pass
-                    elif self.recording_active:
-                        # Stop immediately — no threshold delay when stopping
-                        self.on_toggle()
-                    elif held >= FN_HOLD_THRESHOLD:
-                        self.on_toggle()
+            # Custom key (modifier) — unified down/up events
+            elif self.toggle_key == "custom" and self._custom_is_modifier:
+                key_down = bool(flags & self._custom_flag)
+                if key_down and not self._key_was_down:
+                    self._key_was_down = True
+                    self._on_hotkey_down()
+                elif not key_down and self._key_was_down:
+                    self._key_was_down = False
+                    self._on_hotkey_up()
 
+            # Ctrl solo-tap = pause (works regardless of which hotkey is selected)
             if ctrl_down and self._ctrl_down_time is None:
                 self._ctrl_down_time = time.time()
                 self._ctrl_had_keydown = False
@@ -1474,20 +1632,6 @@ class HotkeyManager:
                 self._ctrl_had_keydown = False
                 if solo and held < CTRL_TAP_THRESHOLD:
                     self.on_pause()
-
-            # Double-tap Option detection
-            if self.toggle_key == "double_opt":
-                opt_down = bool(flags & OPT_FLAG)
-                if opt_down and not self._opt_was_down:
-                    self._opt_was_down = True
-                elif not opt_down and self._opt_was_down:
-                    self._opt_was_down = False
-                    now = time.time()
-                    if now - self._last_opt_up_time < DOUBLE_TAP_THRESHOLD:
-                        self._last_opt_up_time = 0
-                        self.on_toggle()
-                    else:
-                        self._last_opt_up_time = now
 
         return event
 
@@ -1992,6 +2136,10 @@ class FloatingWidget:
                 attr1 = self._make_attributed([
                     ("Double-tap ", False), (" \u2325 ", True), (" or click \u2192", False),
                 ], size=10, center=False)
+            elif self._current_hotkey == "custom":
+                attr1 = self._make_attributed([
+                    ("Press hotkey", False), (" or click \u2192", False),
+                ], size=11, center=False)
             else:
                 attr1 = self._make_attributed([
                     ("Press ", False), (" Ctrl+Opt+V ", True), (" or \u2192", False),
@@ -2430,9 +2578,19 @@ class PXDictateApp(rumps.App):
         )
         self.hotkey_mgr.toggle_key = self.prefs.get("hotkey")
         self.hotkey_mgr._is_transcribing = lambda: self._transcribing
+        # Restore custom hotkey if saved
+        if self.prefs.get("hotkey") == "custom":
+            kc = self.prefs._prefs.get("custom_keycode")
+            im = self.prefs._prefs.get("custom_is_modifier", False)
+            cf = self.prefs._prefs.get("custom_flag", 0)
+            if kc is not None or im:
+                self.hotkey_mgr._custom_keycode = kc
+                self.hotkey_mgr._custom_is_modifier = im
+                self.hotkey_mgr._custom_flag = cf
+                self.hotkey_mgr.toggle_key = "custom"
 
         # Build menu labels from saved prefs
-        hotkey_display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "Double-tap ⌥"}.get(
+        hotkey_display = {"fn": "\U0001F310 fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "\u2325 Option", "custom": "Custom"}.get(
             self.prefs.get("hotkey"), "Hold fn"
         )
         login_label = "  Launch at Login: ON" if _is_launch_at_login() else "  Launch at Login: OFF"
@@ -2457,14 +2615,18 @@ class PXDictateApp(rumps.App):
         self._lang_menu = self._build_language_menu()
         self._model_menu = self._build_model_menu()
 
-        fn_hotkey_item = rumps.MenuItem("  Hold fn (default)", callback=lambda s: self._set_hotkey("fn", s))
+        _modes = "double-tap | hold <1s | hold 1s+ | tap-stop"
+        fn_hotkey_item = rumps.MenuItem(f"  \U0001F310 fn ({_modes})", callback=lambda s: self._set_hotkey("fn", s))
         fn_hotkey_item.state = (self.hotkey_mgr.toggle_key == "fn")
-        ctrlv_hotkey_item = rumps.MenuItem("  Ctrl+Option+V", callback=lambda s: self._set_hotkey("ctrl_opt_v", s))
-        ctrlv_hotkey_item.state = (self.hotkey_mgr.toggle_key == "ctrl_opt_v")
-        f5_hotkey_item = rumps.MenuItem("  F5 (external keyboards)", callback=lambda s: self._set_hotkey("f5", s))
+        opt_hotkey_item = rumps.MenuItem(f"  \u2325 Option ({_modes})", callback=lambda s: self._set_hotkey("double_opt", s))
+        opt_hotkey_item.state = (self.hotkey_mgr.toggle_key == "double_opt")
+        f5_hotkey_item = rumps.MenuItem(f"  F5 ({_modes})", callback=lambda s: self._set_hotkey("f5", s))
         f5_hotkey_item.state = (self.hotkey_mgr.toggle_key == "f5")
-        double_opt_item = rumps.MenuItem("  Double-tap ⌥ Option", callback=lambda s: self._set_hotkey("double_opt", s))
-        double_opt_item.state = (self.hotkey_mgr.toggle_key == "double_opt")
+        ctrlv_hotkey_item = rumps.MenuItem("  Ctrl+Opt+V (toggle)", callback=lambda s: self._set_hotkey("ctrl_opt_v", s))
+        ctrlv_hotkey_item.state = (self.hotkey_mgr.toggle_key == "ctrl_opt_v")
+        custom_display = self._get_custom_key_display()
+        custom_hotkey_item = rumps.MenuItem(f"  Custom Key{custom_display}...", callback=lambda s: self._start_custom_hotkey())
+        custom_hotkey_item.state = (self.hotkey_mgr.toggle_key == "custom")
 
         # Theme submenu
         current_theme = self.prefs.get("theme")
@@ -2493,9 +2655,10 @@ class PXDictateApp(rumps.App):
             None,
             rumps.MenuItem(f"Hotkey: {hotkey_display}", callback=None),
             fn_hotkey_item,
-            ctrlv_hotkey_item,
+            opt_hotkey_item,
             f5_hotkey_item,
-            double_opt_item,
+            ctrlv_hotkey_item,
+            custom_hotkey_item,
             None,
             theme_menu,
             None,
@@ -2517,6 +2680,8 @@ class PXDictateApp(rumps.App):
         self.hotkey_mgr.start()
         _on_main(_init_sounds)
         threading.Thread(target=self._init_audio, daemon=True).start()
+        # Auto-check for updates (once per day, silent)
+        threading.Thread(target=self._auto_check_updates, daemon=True).start()
 
         # Local Cmd+Q monitor (backup — CGEventTap may not catch it)
         def _setup_cmd_q(app_self):
@@ -2792,11 +2957,147 @@ class PXDictateApp(rumps.App):
             for child_key in self.menu[parent_key]:
                 self.menu[parent_key][child_key].state = (child_key.strip() == theme_name)
 
+    def _start_custom_hotkey(self):
+        """Enter learn mode — use floating pill to detect key (no blocking modal)."""
+        def _show_prompt():
+            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            alert = AppKit.NSAlert.alloc().init()
+            alert.setMessageText_("Custom Hotkey")
+            alert.setInformativeText_(
+                "After clicking 'Detect', press any key.\n"
+                "The floating pill will show 'Detecting...'\n\n"
+                "Available keys:\n"
+                "\u2022 fn, \u2325 Option (modifier keys)\n"
+                "\u2022 F1\u2013F15 (function keys)\n"
+                "\u2022 Any letter or number key\n\n"
+                "Reserved (cannot assign):\n"
+                "\u2022 Ctrl (used for pause)\n"
+                "\u2022 Cmd (used for quit/restart)\n"
+                "\u2022 ESC (used for cancel)\n\n"
+                "Note: If you assign a typing key (A-Z, 0-9),\n"
+                "it will type AND trigger recording. Function keys\n"
+                "(F1-F15) and modifiers (fn, Option) are recommended."
+            )
+            alert.setAlertStyle_(AppKit.NSAlertStyleInformational)
+            alert.addButtonWithTitle_("Detect")
+            alert.addButtonWithTitle_("Cancel")
+            result = alert.runModal()
+            if result == AppKit.NSAlertFirstButtonReturn:
+                # Use the floating pill for detection — no blocking modal
+                self.widget.expand()
+                self.widget.set_status("\u2328\ufe0f Detecting... press any key")
+                self.hotkey_mgr.start_learning(self._on_hotkey_learned_pill)
+        _on_main(_show_prompt)
+
+    def _on_hotkey_learned_pill(self, keycode, is_modifier, flag):
+        """Called when a custom key is learned — show in pill then confirm with modal."""
+        if keycode is None and is_modifier is None:
+            # Cancelled with ESC
+            self.widget.set_status("Cancelled")
+            threading.Timer(1.5, self.widget.collapse).start()
+            return
+        # Build display name
+        if is_modifier:
+            names = {FN_FLAG: "fn", OPT_FLAG: "\u2325 Option"}
+            display = names.get(flag, f"Modifier 0x{flag:x}")
+        else:
+            KEY_NAMES = {
+                96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8",
+                101: "F9", 109: "F10", 103: "F11", 111: "F12",
+                105: "F13", 107: "F14", 113: "F15",
+                122: "F1", 120: "F2", 118: "F4",
+                0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G",
+                6: "Z", 7: "X", 8: "C", 9: "V", 11: "B",
+                12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
+                31: "O", 32: "U", 34: "I", 35: "P",
+                37: "L", 38: "J", 40: "K",
+                45: "N", 46: "M",
+                49: "Space", 36: "Return", 48: "Tab",
+                51: "Delete", 117: "Forward Delete",
+                123: "\u2190", 124: "\u2192", 125: "\u2193", 126: "\u2191",
+            }
+            display = KEY_NAMES.get(keycode, f"Key {keycode}")
+        # Save to prefs
+        self.prefs.set("hotkey", "custom")
+        self.prefs._prefs["custom_keycode"] = keycode
+        self.prefs._prefs["custom_is_modifier"] = is_modifier
+        self.prefs._prefs["custom_flag"] = flag
+        self.prefs.save()
+        self.widget.set_hotkey_display("custom")
+        # Show in pill then confirm with non-blocking modal
+        self.widget.set_status(f"\u2705 Hotkey: {display}")
+        def _show_confirmed():
+            time.sleep(1)
+            def _modal():
+                AppKit.NSApp.activateIgnoringOtherApps_(True)
+                confirm = AppKit.NSAlert.alloc().init()
+                confirm.setMessageText_(f"Hotkey set: {display}")
+                confirm.setInformativeText_(
+                    f"Your recording hotkey is now: {display}\n\n"
+                    "4 modes available:\n"
+                    "\u2022 Double-tap \u2192 start recording\n"
+                    "\u2022 Short hold (0.5\u20131s) \u2192 start recording\n"
+                    "\u2022 Long hold (1s+) \u2192 hold-to-record (release = stop)\n"
+                    "\u2022 Single tap while recording \u2192 stop\n\n"
+                    "You can change this anytime from the menu."
+                )
+                confirm.setAlertStyle_(AppKit.NSAlertStyleInformational)
+                confirm.addButtonWithTitle_("Done")
+                confirm.runModal()
+                self.widget.collapse()
+            _on_main(_modal)
+        threading.Thread(target=_show_confirmed, daemon=True).start()
+        self._update_hotkey_menu("custom", display)
+
+    def _get_custom_key_display(self):
+        """Get display string for custom key, or empty if not set."""
+        if self.prefs.get("hotkey") != "custom":
+            return ""
+        kc = self.prefs._prefs.get("custom_keycode")
+        im = self.prefs._prefs.get("custom_is_modifier", False)
+        cf = self.prefs._prefs.get("custom_flag", 0)
+        if im:
+            names = {FN_FLAG: "fn", OPT_FLAG: "\u2325 Option"}
+            return f": {names.get(cf, 'Modifier')}"
+        if kc is not None:
+            KEY_NAMES = {
+                96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8",
+                101: "F9", 109: "F10", 103: "F11", 111: "F12",
+                105: "F13", 107: "F14", 113: "F15",
+                122: "F1", 120: "F2", 118: "F4",
+                0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G",
+                6: "Z", 7: "X", 8: "C", 9: "V", 11: "B",
+                12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
+                31: "O", 32: "U", 34: "I", 35: "P",
+                37: "L", 38: "J", 40: "K",
+                45: "N", 46: "M",
+                49: "Space", 36: "Return", 48: "Tab",
+                51: "Delete", 117: "Forward Delete",
+                123: "\u2190", 124: "\u2192", 125: "\u2193", 126: "\u2191",
+            }
+            return f": {KEY_NAMES.get(kc, f'Key {kc}')}"
+        return ""
+
+    def _update_hotkey_menu(self, key, display_name):
+        """Update hotkey menu items after custom key is set."""
+        _m = "double-tap | hold <1s | hold 1s+ | tap-stop"
+        hotkey_names = {"fn": f"\U0001F310 fn ({_m})", "ctrl_opt_v": "Ctrl+Opt+V (toggle)", "f5": f"F5 ({_m})", "double_opt": f"\u2325 Option ({_m})", "custom": f"Custom Key{': ' + display_name if display_name else ''}..."}
+        for item in self.menu.values():
+            if hasattr(item, 'title') and item.title.startswith("Hotkey:"):
+                item.title = f"Hotkey: {display_name}"
+                break
+        for item in self.menu.values():
+            if hasattr(item, 'title'):
+                t = item.title.strip()
+                for hk, hname in hotkey_names.items():
+                    if t == hname or (hk == "custom" and "Custom" in t):
+                        item.state = (hk == key)
+
     def _set_hotkey(self, key, sender):
         self.hotkey_mgr.toggle_key = key
         self.widget.set_hotkey_display(key)
         self.prefs.set("hotkey", key)
-        display = {"fn": "Hold fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "Double-tap ⌥"}
+        display = {"fn": "\U0001F310 fn", "ctrl_opt_v": "Ctrl+Opt+V", "f5": "F5", "double_opt": "\u2325 Option", "custom": "Custom"}
         for item in self.menu.values():
             if hasattr(item, 'title') and item.title.startswith("Hotkey:"):
                 item.title = f"Hotkey: {display.get(key, key)}"
@@ -2810,12 +3111,13 @@ class PXDictateApp(rumps.App):
                     item.title = f"Start Recording ({hk} / esc to stop)"
                 break
         # Update checkmarks
-        hotkey_names = {"fn": "Hold fn (default)", "ctrl_opt_v": "Ctrl+Option+V", "f5": "F5 (external keyboards)", "double_opt": "Double-tap ⌥ Option"}
+        _m2 = "double-tap | hold <1s | hold 1s+ | tap-stop"
+        hotkey_names = {"fn": f"\U0001F310 fn ({_m2})", "ctrl_opt_v": "Ctrl+Opt+V (toggle)", "f5": f"F5 ({_m2})", "double_opt": f"\u2325 Option ({_m2})", "custom": "Custom Key"}
         for item in self.menu.values():
             if hasattr(item, 'title'):
                 t = item.title.strip()
                 for hk, hname in hotkey_names.items():
-                    if t == hname:
+                    if t == hname or (hk == "custom" and "Custom" in t):
                         item.state = (hk == key)
 
     def set_lang(self, lang, sender):
@@ -2941,6 +3243,41 @@ class PXDictateApp(rumps.App):
             alert.addButtonWithTitle_("Got it")
             alert.runModal()
         _on_main(_do)
+
+    def _auto_check_updates(self):
+        """Check for updates silently on launch, once per day."""
+        try:
+            last_check = self.prefs._prefs.get("last_update_check", "")
+            today = datetime.date.today().isoformat()
+            if last_check == today:
+                return  # already checked today
+            time.sleep(5)  # wait for app to fully start
+            url = f"https://api.github.com/repos/pxinnovative/px-dictate/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": APP_NAME})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+            remote_tag = data.get("tag_name", "").lstrip("v")
+            if not remote_tag:
+                return
+            local_parts = [int(x) for x in APP_VERSION.split(".")]
+            remote_parts = [int(x) for x in remote_tag.split(".")]
+            self.prefs._prefs["last_update_check"] = today
+            self.prefs.save()
+            if remote_parts > local_parts:
+                html_url = data.get("html_url", APP_GITHUB + "/releases")
+                _log.info("Update available: v%s (current: v%s)", remote_tag, APP_VERSION)
+                self._show_update_notification(remote_tag, html_url)
+        except Exception as e:
+            _log.debug("Auto-update check failed: %s", e)
+
+    def _show_update_notification(self, version, url):
+        """Show a non-blocking notification about available update."""
+        rumps.notification(
+            APP_NAME,
+            f"Update available: v{version}",
+            "Go to Help → Check for Updates to download.",
+            sound=False,
+        )
 
     def _check_for_updates(self, sender):
         """Check GitHub for newer release, compare with APP_VERSION."""
@@ -3322,16 +3659,19 @@ class PXDictateApp(rumps.App):
                 wf.writeframes(b"".join(frames))
 
             text = transcribe(tmp.name, lang=self.lang)
+            if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
+                _log.info("Filtered Whisper hallucination: %s", text[:30])
+                text = ""
         finally:
             try:
                 os.unlink(tmp.name)
             except OSError:
                 pass
 
-        if text:
+        if text and self._transcribing:
             if self.session:
                 self.session.add_segment(text, timestamp=seg_time)
-            if self.auto_paste:
+            if self.auto_paste and self._transcribing:
                 paste_to_active_app(text)
                 play_sound("pasted")
             if self.paused:
@@ -3365,10 +3705,11 @@ class PXDictateApp(rumps.App):
         threading.Thread(target=self._silence_monitor, daemon=True).start()
 
     def cancel_recording(self):
-        """Cancel recording — discard everything, don't transcribe."""
+        """Cancel recording or transcription — discard everything."""
+        was_transcribing = self._transcribing
         self._transcribing = False
         self._silence_monitor_active = False
-        if not self.recording:
+        if not self.recording and not was_transcribing:
             return
         self.recording = False
         self.paused = False
@@ -3446,23 +3787,35 @@ class PXDictateApp(rumps.App):
             threading.Thread(target=self._wait_and_finalize, daemon=True).start()
 
     def _silence_monitor(self):
-        """Monitor for silence at recording start. Auto-cancel if no speech for SILENCE_TIMEOUT seconds."""
+        """Monitor for silence at recording start. Alert at 5s, countdown at 10s, cancel at 15s."""
         start = time.time()
+        alerted_5s = False
+        alerted_10s = False
         while self._silence_monitor_active and self.recording:
             time.sleep(0.5)
             elapsed = time.time() - start
             if self._speech_detected:
                 self._silence_monitor_active = False
                 return
-            if elapsed >= SILENCE_TIMEOUT:
-                # Start countdown
+            # 5-second warning — gentle alert
+            if elapsed >= 5 and not alerted_5s:
+                alerted_5s = True
+                play_sound("start")  # subtle alert sound
+                self.widget.set_status("\U0001f507 No sound detected...")
+            # 10-second alert — start countdown
+            if elapsed >= SILENCE_TIMEOUT and not alerted_10s:
+                alerted_10s = True
+                play_sound("stop")  # more noticeable alert
                 for i in range(SILENCE_COUNTDOWN, 0, -1):
                     if not self._silence_monitor_active or self._speech_detected:
+                        # User started speaking during countdown — resume
+                        if self._speech_detected:
+                            self.widget.set_status("\U0001f399\ufe0f Recording...")
                         return
-                    self.widget.set_status(f"\U0001f507 No speech detected \u2014 cancelling in {i}...")
+                    self.widget.set_status(f"\U0001f507 No speech — cancelling in {i}...")
                     time.sleep(1)
                 if self._silence_monitor_active and not self._speech_detected:
-                    _log.info("Auto-cancel: no speech detected for %ds", SILENCE_TIMEOUT)
+                    _log.info("Auto-cancel: no speech detected for %ds", SILENCE_TIMEOUT + SILENCE_COUNTDOWN)
                     self.cancel_recording()
                 return
 
@@ -3489,16 +3842,19 @@ class PXDictateApp(rumps.App):
                 wf.writeframes(b"".join(frames))
 
             text = transcribe(tmp.name, lang=self.lang)
+            if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
+                _log.info("Filtered Whisper hallucination: %s", text[:30])
+                text = ""
         finally:
             try:
                 os.unlink(tmp.name)
             except OSError:
                 pass
 
-        if text:
+        if text and self._transcribing:
             if self.session:
                 self.session.add_segment(text, timestamp=seg_time)
-            if self.auto_paste:
+            if self.auto_paste and self._transcribing:
                 paste_to_active_app(text)
                 play_sound("pasted")
 
@@ -3512,9 +3868,17 @@ class PXDictateApp(rumps.App):
         self._finalize_session()
 
     def _finalize_session(self):
+        was_cancelled = not self._transcribing  # if _transcribing was cleared by cancel_recording
         self._transcribing = False
         session = self.session
         self.session = None
+
+        if was_cancelled:
+            _log.info("Finalize skipped — transcription was cancelled")
+            self.widget.set_status("\U0001f6ab Cancelled")
+            self._set_title("\U0001f399\ufe0f")
+            threading.Timer(1.5, self.widget.collapse).start()
+            return
 
         if session:
             if not session.end_time:

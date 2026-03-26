@@ -163,19 +163,22 @@ This is the first open-source project from PX Innovative. We're building in publ
 - [x] Theme system — 3 themes: Glass (default), Classic, Minimal with light/dark mode support
 - [x] Minimum recording duration — prevents Whisper hallucinations on short recordings
 - [x] Voice Isolation tip — onboarding wizard page + Help menu guidance
-- [x] Check for Updates — compares against GitHub Releases
-- [x] Configurable hotkeys — fn, Ctrl+Opt+V, F5, Double-tap Option
-- [x] ESC to cancel — discards recording without transcribing
-- [x] Silence auto-cancel — 20s of no speech triggers countdown and auto-cancel
+- [x] Check for Updates — manual + auto-check on launch (once/day)
+- [x] Configurable hotkeys — fn, Option, F5, Ctrl+Opt+V, or any custom key
+- [x] 4 trigger modes — double-tap, short hold, long hold, tap-to-stop (all keys)
+- [x] Custom Key — learn mode detects any key and assigns all 4 modes
+- [x] ESC to cancel — discards recording or in-progress transcription
+- [x] Silence detection — alerts at 5s and 10s, auto-cancel with countdown
+- [x] Whisper hallucination filter — blocks "Gracias por ver el video" and similar
 - [x] Light mode support — readable text in macOS light appearance
 
 ### v1.2 — In Progress
-- [ ] Multi-mode hotkeys — hold, double-tap, and single-tap-stop on every key ([#15](../../issues/15))
+- [ ] Transcription progress bar — visual feedback during Whisper processing ([#18](../../issues/18))
 - [ ] Transcript preview in pill — 2-line animated text ([#16](../../issues/16))
+- [ ] Claude Code skills — /dictate-setup and /dictate included in repo ([#17](../../issues/17))
 - [ ] Audio waveform visualization — animated alternative to VU meter ([#14](../../issues/14))
 - [ ] Custom vocabulary / domain-specific terms ([#5](../../issues/5))
 - [ ] Onboarding wizard redesign ([#6](../../issues/6))
-- [ ] Double-tap fn trigger ([#12](../../issues/12))
 - [ ] Wake word detection — "Hey Dictate" ([#13](../../issues/13))
 - [ ] Self-contained .dmg installer ([#1](../../issues/1))
 
