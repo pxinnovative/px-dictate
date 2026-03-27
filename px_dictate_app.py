@@ -60,7 +60,7 @@ _log.info("WHISPER_CLI will be resolved after config section")
 
 # ── App Info ────────────────────────────────────────────────────────────
 APP_NAME = "PX Dictate"
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.4"
 APP_BUNDLE_ID = "com.pxinnovative.pxdictate"
 APP_AUTHOR = "Victor Kerber"
 APP_COMPANY = "PX Innovative Solutions Inc."
@@ -1725,7 +1725,9 @@ class FloatingWidget:
         self.pause_btn = None
         self.stop_btn = None
         self.rec_btn = None
+        self._rec_img_view = None
         self._rec_bg = None
+        self._label_icon = None
         self._pause_callback = None
         self._stop_callback = None
         self._expanded = False
@@ -1862,8 +1864,8 @@ class FloatingWidget:
                     )
                 else:
                     self._rec_bg.layer().setBorderWidth_(0)
-            if self.rec_btn:
-                self.rec_btn.setTextColor_(self._theme_color("text_color"))
+            if self._rec_img_view:
+                self._rec_img_view.setImage_(self._render_rec_image())
             if self.bar_bg:
                 self.bar_bg.layer().setBackgroundColor_(self._theme_color("bar_bg").CGColor())
             # Update button icons — Classic uses emoji, Glass/Minimal use SF Symbols
@@ -1881,22 +1883,77 @@ class FloatingWidget:
         use_sf = (tn != "classic")
         if self.pause_btn:
             if use_sf:
-                self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
+                self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11))
             else:
                 self._setup_label(self.pause_btn, "\u23f8", 11, AppKit.NSFontWeightBold,
                                   self._theme_color("text_color"))
         if self.stop_btn:
             if use_sf:
-                self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11, y_offset=-8))
+                self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11))
             else:
                 self._setup_label(self.stop_btn, "\u23f9", 11, AppKit.NSFontWeightBold,
                                   self._theme_color("text_color"))
-        if self.rec_btn:
-            if use_sf:
-                self.rec_btn.setAttributedStringValue_(self._sf_attributed("record.circle.fill", " REC", size=11, y_offset=-8))
-            else:
-                self._setup_label(self.rec_btn, "\U0001f534 REC", 11, AppKit.NSFontWeightHeavy,
-                                  self._theme_color("text_color"))
+        # Update REC rendered image
+        if self._rec_img_view:
+            self._rec_img_view.setImage_(self._render_rec_image())
+
+    def _render_rec_image(self, width=54, height=22):
+        """Render a REC button image with circle + text, perfectly centered."""
+        img = AppKit.NSImage.alloc().initWithSize_((width, height))
+        img.lockFocus()
+
+        text_clr = self._theme_color("text_color")
+
+        # Measure text to calculate total content width for centering
+        font = AppKit.NSFont.systemFontOfSize_weight_(11, AppKit.NSFontWeightHeavy)
+        attrs = {AppKit.NSFontAttributeName: font, AppKit.NSForegroundColorAttributeName: text_clr}
+        text_str = AppKit.NSAttributedString.alloc().initWithString_attributes_("REC", attrs)
+        text_size = text_str.size()
+
+        circle_size = 12
+        gap = 4
+        total_w = circle_size + gap + text_size.width
+        start_x = (width - total_w) / 2.0  # center everything horizontally
+
+        circle_x = start_x
+        circle_y = (height - circle_size) / 2.0
+        circle_rect = AppKit.NSMakeRect(circle_x, circle_y, circle_size, circle_size)
+
+        if self._theme_name == "classic":
+            # Red filled circle for Classic
+            AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.9, 0.15, 0.15, 1.0).setFill()
+        else:
+            # Theme text color circle with ring for Glass/Minimal
+            text_clr.setFill()
+
+        path = AppKit.NSBezierPath.bezierPathWithOvalInRect_(circle_rect)
+        path.fill()
+
+        # Draw inner dot (for non-classic: hollow circle with dot)
+        if self._theme_name != "classic":
+            inner_size = 4
+            inner_x = circle_x + (circle_size - inner_size) / 2.0
+            inner_y = circle_y + (circle_size - inner_size) / 2.0
+            # Clear center
+            AppKit.NSColor.clearColor().setFill()
+            inner_path = AppKit.NSBezierPath.bezierPathWithOvalInRect_(
+                AppKit.NSMakeRect(circle_x + 2, circle_y + 2, circle_size - 4, circle_size - 4))
+            AppKit.NSGraphicsContext.currentContext().setCompositingOperation_(AppKit.NSCompositeCopy)
+            inner_path.fill()
+            # Draw center dot
+            AppKit.NSGraphicsContext.currentContext().setCompositingOperation_(AppKit.NSCompositeSourceOver)
+            text_clr.setFill()
+            dot_path = AppKit.NSBezierPath.bezierPathWithOvalInRect_(
+                AppKit.NSMakeRect(inner_x, inner_y, inner_size, inner_size))
+            dot_path.fill()
+
+        # Draw "REC" text centered vertically, right of circle (reuse measured text)
+        text_x = circle_x + circle_size + gap
+        text_y = (height - text_size.height) / 2.0
+        text_str.drawAtPoint_(AppKit.NSMakePoint(text_x, text_y))
+
+        img.unlockFocus()
+        return img
 
     def _use_sf_symbols(self):
         """Return True if current theme should use SF Symbols instead of emoji."""
@@ -1937,25 +1994,28 @@ class FloatingWidget:
         img.setTemplate_(True)
         return img
 
-    def _sf_attributed(self, symbol_name, text="", size=11, color=None, y_offset=-3):
-        """Create an attributed string with an SF Symbol image + optional text, centered."""
+    def _sf_attributed(self, symbol_name, text="", size=11, color=None, y_offset=None):
+        """Create an attributed string with an SF Symbol + optional text, vertically centered."""
         clr = color or self._theme_color("text_color")
         result = AppKit.NSMutableAttributedString.alloc().init()
         para = AppKit.NSMutableParagraphStyle.alloc().init()
         para.setAlignment_(AppKit.NSTextAlignmentCenter)
+        font = AppKit.NSFont.systemFontOfSize_weight_(size, AppKit.NSFontWeightBold)
         img = self._sf_symbol_image(symbol_name, size=size, color=clr)
         if img:
             attachment = AppKit.NSTextAttachment.alloc().init()
             cell = AppKit.NSTextAttachmentCell.alloc().initImageCell_(img)
             attachment.setAttachmentCell_(cell)
-            attachment.setBounds_(((0, y_offset), (img.size().width, img.size().height)))
+            # Calculate vertical offset to center image with text
+            img_h = img.size().height
+            if y_offset is None:
+                y_offset = (font.capHeight() - img_h) / 2.0 + font.descender()
+            attachment.setBounds_(((0, y_offset), (img.size().width, img_h)))
             img_str = AppKit.NSAttributedString.attributedStringWithAttachment_(attachment)
-            # Wrap in mutable to add paragraph style
             mut_img = AppKit.NSMutableAttributedString.alloc().initWithAttributedString_(img_str)
             mut_img.addAttribute_value_range_(AppKit.NSParagraphStyleAttributeName, para, AppKit.NSMakeRange(0, mut_img.length()))
             result.appendAttributedString_(mut_img)
         if text:
-            font = AppKit.NSFont.systemFontOfSize_weight_(size, AppKit.NSFontWeightBold)
             attrs = {
                 AppKit.NSFontAttributeName: font,
                 AppKit.NSForegroundColorAttributeName: clr,
@@ -2041,6 +2101,13 @@ class FloatingWidget:
                           self._dot_color())
         content.addSubview_(self.mini_label)
 
+        # Label icon (SF Symbol for Glass/Minimal — mic, pause, etc.)
+        self._label_icon = AppKit.NSImageView.alloc().initWithFrame_(((10, 24), (14, 14)))
+        self._label_icon.setImageAlignment_(AppKit.NSImageAlignCenter)
+        self._label_icon.setImageScaling_(AppKit.NSImageScaleProportionallyDown)
+        self._label_icon.setHidden_(True)
+        content.addSubview_(self._label_icon)
+
         # Hint line 1 (hidden)
         self.label = AppKit.NSTextField.alloc().initWithFrame_(((8, 20), (HINT_W - 16, 16)))
         self.label.setBezeled_(False)
@@ -2077,7 +2144,7 @@ class FloatingWidget:
 
         # Pause button (hidden, shown during recording)
         self.pause_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 80, 21), (32, 16)))
-        self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
+        self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11))
         self.pause_btn.setBezeled_(False)
         self.pause_btn.setDrawsBackground_(False)
         self.pause_btn.setEditable_(False)
@@ -2091,7 +2158,7 @@ class FloatingWidget:
 
         # Stop button (hidden, shown during recording)
         self.stop_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 44, 21), (32, 16)))
-        self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11, y_offset=-8))
+        self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11))
         self.stop_btn.setBezeled_(False)
         self.stop_btn.setDrawsBackground_(False)
         self.stop_btn.setEditable_(False)
@@ -2117,15 +2184,12 @@ class FloatingWidget:
             )
         self._rec_bg.setHidden_(True)
         content.addSubview_(self._rec_bg)
-        # Text label centered inside the bg view — use tight height to avoid top-align gap
-        self.rec_btn = AppKit.NSTextField.alloc().initWithFrame_(((0, 3), (56, 20)))
-        self.rec_btn.setAttributedStringValue_(self._sf_attributed("record.circle.fill", " REC", size=11, y_offset=-8))
-        self.rec_btn.setBezeled_(False)
-        self.rec_btn.setDrawsBackground_(False)
-        self.rec_btn.setEditable_(False)
-        self.rec_btn.setSelectable_(False)
-        self.rec_btn.setAlignment_(AppKit.NSTextAlignmentCenter)
-        self._rec_bg.addSubview_(self.rec_btn)
+        # REC button — single rendered image (circle + text, perfectly centered)
+        self._rec_img_view = AppKit.NSImageView.alloc().initWithFrame_(((2, 2), (54, 22)))
+        self._rec_img_view.setImageAlignment_(AppKit.NSImageAlignCenter)
+        self._rec_img_view.setImageScaling_(AppKit.NSImageScaleNone)
+        self._rec_img_view.setImage_(self._render_rec_image())
+        self._rec_bg.addSubview_(self._rec_img_view)
 
         self.window.orderFrontRegardless()
         self._ready.set()
@@ -2178,7 +2242,7 @@ class FloatingWidget:
             # Click on REC button region or anywhere in hint = start recording
             self._hint_mode = False
             def _hide_rec():
-                if self.rec_btn:
+                if self._rec_bg:
                     self._rec_bg.setHidden_(True)
             _on_main(_hide_rec)
             if self.on_click_start:
@@ -2286,8 +2350,6 @@ class FloatingWidget:
                     if self.bar_view and self._bar_max_w:
                         width = max(1, int(pv / 100.0 * self._bar_max_w))
                         self.bar_view.setFrame_(((BAR_INSET, 5), (width, 8)))
-                        if self.label:
-                            self.label.setStringValue_(f"Transcribing... {pv}%")
                 _on_main(_do)
                 time.sleep(0.1)
         threading.Thread(target=_slow_fill, daemon=True).start()
@@ -2295,6 +2357,7 @@ class FloatingWidget:
     def update_progress(self, pct):
         """Update progress target from whisper real data."""
         self._progress_target = pct
+        self._set_label(f"Transcribing... {pct}%")
 
     def hide_progress_bar(self):
         """Quick snap to 100% and hide — non-blocking."""
@@ -2303,8 +2366,6 @@ class FloatingWidget:
             if self.bar_view and self._bar_max_w:
                 # Snap to 100%
                 self.bar_view.setFrame_(((BAR_INSET, 5), (self._bar_max_w, 8)))
-            if self.label:
-                self.label.setStringValue_("Transcribing... 100%")
         _on_main(_do)
         # Brief delay then hide
         def _hide_later():
@@ -2356,6 +2417,8 @@ class FloatingWidget:
                 attr1 = self._make_attributed([
                     ("Press ", False), (" Ctrl+Opt+V ", True), (" or \u2192", False),
                 ], size=10, center=False)
+            if self._label_icon:
+                self._label_icon.setHidden_(True)
             self.label.setFrame_(((10, 23), (HINT_W - 76, 16)))
             self.label.setAttributedStringValue_(attr1)
             self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
@@ -2407,13 +2470,20 @@ class FloatingWidget:
             self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_panel"])
             self.mini_label.setHidden_(True)
 
-            self.label.setFrame_(((12, 26), (REC_PILL_W - 102, 14)))
             self.label.setFont_(AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium))
             self.label.setTextColor_(self._theme_color("text_color"))
-            if self._use_sf_symbols():
-                self.label.setAttributedStringValue_(self._sf_attributed("mic.fill", " Recording...", size=9.5))
+            if self._label_icon:
+                img = self._sf_symbol_image("mic.fill", size=12, color=self._theme_color("text_color"))
+                if img:
+                    self._label_icon.setImage_(img)
+                    self._label_icon.setFrame_(((12, 24), (14, 14)))
+                    self._label_icon.setHidden_(False)
+                    self.label.setFrame_(((24, 22), (REC_PILL_W - 94, 14)))
+                else:
+                    self.label.setFrame_(((12, 22), (REC_PILL_W - 82, 14)))
             else:
-                self.label.setStringValue_("\U0001f399\ufe0f Recording...")
+                self.label.setFrame_(((12, 22), (REC_PILL_W - 82, 14)))
+            self.label.setStringValue_("Recording...")
             self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
             self.label.setHidden_(False)
             self.label2.setFrame_(((12, 10), (50, 14)))
@@ -2464,6 +2534,8 @@ class FloatingWidget:
             self.mini_label.setHidden_(False)
             self.label.setAlignment_(AppKit.NSTextAlignmentCenter)
             self.label.setHidden_(True)
+            if self._label_icon:
+                self._label_icon.setHidden_(True)
             self.label2.setHidden_(True)
             self.bar_bg.setHidden_(True)
             self.bar_view.setHidden_(True)
@@ -2483,58 +2555,60 @@ class FloatingWidget:
                     break
                 toggle = not toggle
                 if toggle:
-                    if self._use_sf_symbols():
-                        self._set_sf_label("mic.fill", [("press ", False), ("ESC", True), (" to cancel", False)])
-                    else:
-                        self._set_attributed_label([
-                            ("\U0001f399\ufe0f press ", False), ("ESC", True), (" to cancel", False),
-                        ])
+                    self._set_sf_label("mic.fill", [("press ", False), ("ESC", True), (" to cancel", False)])
                 else:
-                    if self._use_sf_symbols():
-                        self._set_sf_label("mic.fill", [("press ", False), ("CTRL", True), (" to pause", False)])
-                    else:
-                        self._set_attributed_label([
-                            ("\U0001f399\ufe0f press ", False), ("CTRL", True), (" to pause", False),
-                        ])
+                    self._set_sf_label("mic.fill", [("press ", False), ("CTRL", True), (" to pause", False)])
         threading.Thread(target=_run, daemon=True).start()
 
     def _set_label(self, text):
         def _do():
             if self.label:
+                if self._label_icon:
+                    self._label_icon.setHidden_(True)
+                self.label.setFrame_(((13, 22), (REC_PILL_W - 83, 14)))
                 self.label.setFont_(AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium))
                 self.label.setTextColor_(self._theme_color("text_color"))
+                self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
                 self.label.setStringValue_(text)
         _on_main(_do)
 
     def _set_attributed_label(self, parts):
-        """Set label with attributed string (bold keys)."""
+        """Set label with attributed string (bold keys) — Classic theme."""
         def _do():
             if self.label:
+                if self._label_icon:
+                    self._label_icon.setHidden_(True)
+                self.label.setFrame_(((13, 22), (REC_PILL_W - 83, 14)))
+                self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
                 attr = self._make_attributed(parts, size=9.5, center=False)
                 self.label.setAttributedStringValue_(attr)
         _on_main(_do)
 
     def _set_sf_label(self, symbol_name, parts):
-        """Set label with SF Symbol prefix + attributed text parts."""
+        """Set label with separate SF Symbol icon + plain text."""
         def _do():
             if not self.label:
                 return
-            result = AppKit.NSMutableAttributedString.alloc().init()
-            # Add SF Symbol image
-            img = self._sf_symbol_image(symbol_name, size=9.5, color=self._theme_color("text_color"))
-            if img:
-                attachment = AppKit.NSTextAttachment.alloc().init()
-                cell = AppKit.NSTextAttachmentCell.alloc().initImageCell_(img)
-                attachment.setAttachmentCell_(cell)
-                attachment.setBounds_(((0, -4), (img.size().width, img.size().height)))
-                img_str = AppKit.NSAttributedString.attributedStringWithAttachment_(attachment)
-                result.appendAttributedString_(img_str)
-                space = AppKit.NSAttributedString.alloc().initWithString_(" ")
-                result.appendAttributedString_(space)
-            # Add text parts
+            # Position icon and label side by side (all themes)
+            if self._label_icon:
+                img = self._sf_symbol_image(symbol_name, size=12, color=self._theme_color("text_color"))
+                if img:
+                    self._label_icon.setImage_(img)
+                    self._label_icon.setFrame_(((12, 24), (14, 14)))
+                    self._label_icon.setHidden_(False)
+                    self.label.setFrame_(((24, 22), (REC_PILL_W - 94, 14)))
+                else:
+                    self._label_icon.setHidden_(True)
+                    self.label.setFrame_(((12, 22), (REC_PILL_W - 82, 14)))
+            else:
+                self.label.setFrame_(((12, 22), (REC_PILL_W - 82, 14)))
+
+            # Build plain text (no image attachments)
+            self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
             normal_font = AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium)
             key_font = AppKit.NSFont.monospacedSystemFontOfSize_weight_(9.5, AppKit.NSFontWeightBold)
             text_clr = self._theme_color("text_color")
+            result = AppKit.NSMutableAttributedString.alloc().init()
             for text, is_key in parts:
                 attrs = {
                     AppKit.NSFontAttributeName: key_font if is_key else normal_font,
@@ -2579,16 +2653,10 @@ class FloatingWidget:
         def _do():
             if self.pause_btn:
                 if paused:
-                    if self._use_sf_symbols():
-                        self.pause_btn.setAttributedStringValue_(self._sf_attributed("mic.fill", size=11, y_offset=-8))
-                    else:
-                        self.pause_btn.setStringValue_("\U0001f399")
+                    self.pause_btn.setAttributedStringValue_(self._sf_attributed("mic.fill", size=11))
                     self.pause_btn.layer().setBackgroundColor_(self._theme_color("pause_resume_bg").CGColor())
                 else:
-                    if self._use_sf_symbols():
-                        self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
-                    else:
-                        self.pause_btn.setStringValue_("\u23f8")
+                    self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11))
                     self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
         _on_main(_do)
 
@@ -2878,6 +2946,7 @@ class PXDictateApp(rumps.App):
         self._transcribing = False
         self._speech_detected = False
         self._silence_monitor_active = False
+        self._paused_alt_active = False
 
         self.hotkey_mgr = HotkeyManager(
             on_toggle=self._on_toggle,
@@ -3131,7 +3200,10 @@ class PXDictateApp(rumps.App):
         if self._hold_msg_triggered:
             self._hold_msg_triggered = False
             if self.recording:
-                self.widget.set_status("🎙️ Hold fn — esc to stop")
+                if self.widget._use_sf_symbols():
+                    self.widget._set_sf_label("mic.fill", [("Hold fn \u2014 esc to stop", False)])
+                else:
+                    self.widget._set_sf_label("mic.fill", [("Hold fn \u2014 esc to stop", False)])
                 def _resume():
                     time.sleep(5)
                     if self.recording and self._collecting and not self.paused:
@@ -3935,21 +4007,55 @@ class PXDictateApp(rumps.App):
         else:
             self.start_recording()
 
+    def _show_paused_label(self, transcribing=False):
+        """Show paused alternation: cycles between continue/cancel (and transcribing if active)."""
+        self.widget._msg_stop = True  # stop recording alternation
+        # Start paused alternation
+        self._paused_alt_active = True
+        def _run():
+            msgs = []
+            if transcribing:
+                msgs.append(("pause.fill", [("Transcribing...", False)]))
+            msgs.append(("pause.fill", [("press ", False), ("CTRL", True), (" to continue", False)]))
+            msgs.append(("pause.fill", [("press ", False), ("ESC", True), (" to cancel", False)]))
+            idx = 0
+            while self._paused_alt_active and self.paused:
+                sym, parts = msgs[idx % len(msgs)]
+                self.widget._set_sf_label(sym, parts)
+                idx += 1
+                time.sleep(2)
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _stop_paused_alternation(self):
+        """Stop the paused alternation."""
+        self._paused_alt_active = False
+
     def do_pause_process(self, sender):
         if not self.recording:
             return
         if self.paused:
             # Unpause
             self.paused = False
+            self._paused_alt_active = False  # stop paused alternation
             self._collecting = True
             self._set_title("🔴")
             self.widget.set_paused_visual(False)
             play_sound("unpause")
             if self.session:
                 self.session.resume()
-            self.widget.set_status("🎙️ Recording — esc to stop")
+            if self.widget._use_sf_symbols():
+                self.widget._set_sf_label("mic.fill", [("Recording...", False)])
+            else:
+                self.widget._set_sf_label("mic.fill", [("Recording...", False)])
             self.widget._start_alternation()
             self.widget.resume_rec_timer()
+            # Show VU meter bar again
+            def _show_bars():
+                if self.widget.bar_bg:
+                    self.widget.bar_bg.setHidden_(False)
+                if self.widget.bar_view:
+                    self.widget.bar_view.setHidden_(False)
+            _on_main(_show_bars)
             self._speech_detected = True  # Don't restart silence monitoring after unpause
             if self._hold_active:
                 self.hotkey_mgr.set_hold_paused(False)
@@ -3964,7 +4070,7 @@ class PXDictateApp(rumps.App):
             self.widget.set_paused_visual(True)
             play_sound("pause")
             self.widget.update_level(0)
-            self.widget.set_status("Paused \u2014 Ctrl resume")
+            self._show_paused_label(transcribing=bool(current_frames))
             self.widget.pause_rec_timer()
             self._silence_monitor_active = False
             if self.session:
@@ -3992,7 +4098,12 @@ class PXDictateApp(rumps.App):
         min_frames = int(SAMPLE_RATE / CHUNK * 0.5)
         if len(frames) < min_frames:
             if self.paused:
-                self.widget.set_status("Paused (too short) \u2014 Ctrl resume")
+                self.widget.set_status("Too short")
+                def _show_pause_after_short():
+                    time.sleep(1.5)
+                    if self.paused:
+                        self._show_paused_label()
+                threading.Thread(target=_show_pause_after_short, daemon=True).start()
             return
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
@@ -4007,7 +4118,11 @@ class PXDictateApp(rumps.App):
                 _log.info("Segment audio is silence — skipping transcription")
                 text = ""
             else:
-                text = transcribe(tmp.name, lang=self.lang)
+                self.widget.show_progress_bar()
+                def _seg_progress(pct):
+                    self.widget.update_progress(pct)
+                text = transcribe(tmp.name, lang=self.lang, on_progress=_seg_progress)
+                self.widget.hide_progress_bar()
                 # Filter bracket-only text like [AUDIO_EN_BLANCO], (Blank Audio), etc.
                 if text and re.fullmatch(r'[\[\(\{].*[\]\)\}]', text.strip()):
                     _log.info("Filtered bracket hallucination: %s", text[:30])
@@ -4028,9 +4143,16 @@ class PXDictateApp(rumps.App):
                 paste_to_active_app(text)
                 play_sound("pasted")
             if self.paused:
-                self.widget.set_status("Segment saved \u2713 \u2014 Ctrl resume")
+                self._paused_alt_active = False  # stop transcribing alternation
+                self.widget._set_sf_label("pause.fill", [("Segment saved \u2713", False)])
+                # After 2 seconds, switch to pause alternation (no transcribing)
+                def _show_pause_msg():
+                    time.sleep(2)
+                    if self.paused:
+                        self._show_paused_label(transcribing=False)
+                threading.Thread(target=_show_pause_msg, daemon=True).start()
         elif self.paused:
-            self.widget.set_status("Paused \u2014 Ctrl resume")
+            self._show_paused_label()
 
     def start_recording(self):
         if self.recording:
@@ -4147,10 +4269,13 @@ class PXDictateApp(rumps.App):
         alerted_5s = False
         alerted_10s = False
         while self._silence_monitor_active and self.recording:
-            time.sleep(0.5)
+            time.sleep(0.15)
             elapsed = time.time() - start
             if self._speech_detected:
                 self._silence_monitor_active = False
+                # Immediately show first message, then start alternation
+                self.widget._set_sf_label("mic.fill", [("Recording...", False)])
+                self.widget._start_alternation()
                 return
             # 5-second warning — gentle alert
             if elapsed >= 5 and not alerted_5s:
@@ -4165,9 +4290,12 @@ class PXDictateApp(rumps.App):
                     if not self._silence_monitor_active or self._speech_detected:
                         # User started speaking during countdown — resume
                         if self._speech_detected:
-                            self.widget.set_status("\U0001f399\ufe0f Recording...")
+                            if self.widget._use_sf_symbols():
+                                self.widget._set_sf_label("mic.fill", [("Recording...", False)])
+                            else:
+                                self.widget._set_sf_label("mic.fill", [("Recording...", False)])
                         return
-                    self.widget.set_status(f"No speech \u2014 cancelling in {i}...")
+                    self.widget.set_status(f"No speech \u2014 cancel in {i}")
                     time.sleep(1)
                 if self._silence_monitor_active and not self._speech_detected:
                     _log.info("Auto-cancel: no speech detected for %ds", SILENCE_TIMEOUT + SILENCE_COUNTDOWN)
