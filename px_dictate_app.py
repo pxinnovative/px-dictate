@@ -3730,13 +3730,21 @@ class PXDictateApp(rumps.App):
             AppKit.NSApp.activateIgnoringOtherApps_(True)
             alert = AppKit.NSAlert.alloc().init()
             alert.setMessageText_("Check for Updates")
-            alert.setInformativeText_(message)
+            if download_url:
+                alert.setInformativeText_(
+                    message + "\n\nClick 'What's New' to see what changed and how to update."
+                )
+            else:
+                alert.setInformativeText_(message)
             alert.setAlertStyle_(AppKit.NSAlertStyleInformational)
             if download_url:
                 alert.addButtonWithTitle_("Download")
                 alert.addButtonWithTitle_("Later")
+                alert.addButtonWithTitle_("What's New →")
                 result = alert.runModal()
                 if result == AppKit.NSAlertFirstButtonReturn:
+                    webbrowser.open(download_url)
+                elif result == AppKit.NSAlertThirdButtonReturn:
                     webbrowser.open(download_url)
             else:
                 alert.addButtonWithTitle_("OK")
