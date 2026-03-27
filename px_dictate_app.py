@@ -60,7 +60,7 @@ _log.info("WHISPER_CLI will be resolved after config section")
 
 # ── App Info ────────────────────────────────────────────────────────────
 APP_NAME = "PX Dictate"
-APP_VERSION = "1.1.4"
+APP_VERSION = "1.1.5"
 APP_BUNDLE_ID = "com.pxinnovative.pxdictate"
 APP_AUTHOR = "Victor Kerber"
 APP_COMPANY = "PX Innovative Solutions Inc."
@@ -565,7 +565,7 @@ def _show_setup_window():
 
 # ── Onboarding Wizard ──────────────────────────────────────────────────
 
-WIZARD_W = 680
+WIZARD_W = 560
 WIZARD_H = 620
 WIZARD_DONT_SHOW_KEY = "wizard_dont_show_v1"
 
@@ -603,136 +603,68 @@ class OnboardingWizard:
     PAGES = [
         {
             "title": f"Welcome to {APP_NAME}",
-            "subtitle": "Created with \u2764\ufe0f by PX Innovative.",
+            "subtitle": "Free, open-source voice-to-text for macOS.",
             "body": (
-                f"{APP_NAME} is a free, open-source voice-to-text app for macOS.\n\n"
-                "Powered by Whisper AI, it runs 100% locally on your Mac.\n\n"
-                "NO CLOUD. NO SUBSCRIPTION. NO DATA LEAVES YOUR MAC.\n\n"
-                f"Unlike Apple Dictation, {APP_NAME}:\n\n"
-                "\u2022 Auto-detects language for each segment\n"
-                "\u2022 Records full sessions with timestamps\n"
-                "\u2022 Works everywhere, not just text fields\n"
-                "\u2022 Saves audio (MP3) and transcripts automatically\n"
-                "\u2022 Is completely open-source and verifiable\n\n"
-                "It only takes a few short steps to set up.\nClick Next to get started."
+                f"**{APP_NAME} runs 100% locally \u2014 powered by Whisper AI.**\n\n"
+                "**No cloud. No subscription.**\n"
+                "**Your audio never leaves your computer.**\n\n"
+                "\u2022 Works everywhere \u2014 not just text fields\n"
+                "\u2022 Auto-detects language per recording segment\n"
+                "\u2022 Saves audio (MP3) + timestamped transcripts\n"
+                "\u2022 Floating pill widget + menu bar control\n"
+                "\u2022 Three themes: Classic, Glass, Minimal\n\n"
+                "A few quick steps and you\u2019re ready to dictate.\n\n"
+                "REQUIREMENTS:\n\n"
+                "\u2022 macOS 12 Monterey or later\n"
+                "\u2022 whisper-cpp (checked automatically on launch)\n"
+                "\u2022 Microphone permission (requested on first use)\n"
             ),
-            "emoji": "\U0001f399\ufe0f",
             "show_icon": True,
         },
         {
-            "title": f"Where is {APP_NAME}?",
-            "subtitle": f"{APP_NAME} lives in the menu bar and as a floating pill.",
-            "body": (
-                f"You'll find {APP_NAME}'s microphone icon (\U0001f399\ufe0f) in your menu bar\n"
-                "at the top right corner of your screen. Click it to access\n"
-                "all settings, history, and controls.\n\n"
-                "FLOATING PILL:\n\n"
-                "There's a floating pill (\u00b7 \u00b7 \u00b7) near the top center of your screen.\n"
-                "This is your quick-access recording widget:\n\n"
-                "\u2022 Hover to see it brighten\n"
-                "\u2022 Click to expand and see the REC button\n"
-                "\u2022 During recording, use \u23f8 to pause and \u23f9 to stop\n"
-                "\u2022 The color bar shows your microphone level in real-time\n\n"
-                f"{APP_NAME} is highly customizable. You can change the hotkey,\n"
-                "language, save options, sounds, and more from the menu."
-            ),
-            "emoji": "\U0001f4cd",
-        },
-        {
             "title": "Quick Setup",
-            "subtitle": "Two simple steps to get PX Dictate working perfectly.",
+            "subtitle": "Two steps to enable global hotkeys.",
             "body": (
-                "STEP 1 \u2014 Accessibility Permission\n\n"
+                "STEP 1 \u2014 Accessibility\n\n"
                 "Open System Settings \u2192 Privacy & Security \u2192 Accessibility.\n"
-                "Click '+' and add PX Dictate. This allows the fn key to work\n"
-                "as a global hotkey.\n\n"
-                "If hotkeys stop working after an update, remove PX Dictate\n"
-                "from the list and add it again.\n\n"
-                "STEP 2 \u2014 Keyboard Setting\n\n"
+                "Click \u2018+\u2019 and add PX Dictate. This allows the fn key\n"
+                "to work as a global hotkey.\n\n"
+                "If hotkeys stop working after an update, remove and\n"
+                "re-add PX Dictate from the list.\n\n"
+                "STEP 2 \u2014 fn Key\n\n"
                 "Open System Settings \u2192 Keyboard.\n"
-                "Set 'Press fn key to' \u2192 'Do Nothing'.\n"
-                "This frees the fn key for PX Dictate to use.\n\n"
-                "After both steps, restart PX Dictate and you're ready!\n"
+                "Set \u2018Press fn key to\u2019 \u2192 \u2018Do Nothing\u2019.\n\n"
+                "After both steps, restart PX Dictate.\n"
                 "Microphone permission is requested automatically."
             ),
-            "emoji": "\U0001f527",
+            "emoji": "\u2699\ufe0f",
             "actions": [
-                ("Open Accessibility Settings", 1),
-                ("Open Keyboard Settings", 2),
+                ("\u2197  Open Accessibility", 1),
+                ("\u2197  Open Keyboard", 2),
             ],
         },
         {
-            "title": "How to Use",
-            "subtitle": "Recording, pausing, and keyboard shortcuts.",
-            "body": (
-                "RECORDING:\n\n"
-                "\u2022 Double-tap fn to start recording\n"
-                "\u2022 Hold fn for 0.5\u20131s to start recording\n"
-                "\u2022 Hold fn for 1.2s+ for hold-to-record (release = stop)\n"
-                "\u2022 Or click the floating pill \u2192 click REC\n\n"
-                "STOPPING:\n\n"
-                "\u2022 Tap fn once to stop and transcribe\n"
-                "\u2022 Press ESC to cancel (discards recording)\n\n"
-                "PAUSE & SEGMENTS:\n\n"
-                "\u2022 Tap Control to pause \u2014 audio is transcribed instantly\n"
-                "\u2022 Tap Control again to resume a new segment\n"
-                "\u2022 Each segment gets its own timestamp\n\n"
-                "AUTO-PASTE:\n\n"
-                "\u2022 Transcribed text is automatically pasted into your active app\n"
-                "\u2022 Disable this in the menu if you prefer manual pasting\n\n"
-                "KEYBOARD SHORTCUTS:\n\n"
-                "fn (double-tap)    \u2014 Start recording\n"
-                "fn (hold <1s)      \u2014 Start recording\n"
-                "fn (hold 1.2s+)    \u2014 Hold-to-record\n"
-                "fn (tap while rec) \u2014 Stop & transcribe\n"
-                "Control (tap)      \u2014 Pause & process segment\n"
-                "ESC                \u2014 Cancel (discard)\n"
-                "\u2318Q               \u2014 Quit PX Dictate\n"
-                "\u2318R               \u2014 Restart PX Dictate\n\n"
-                "You can change the hotkey in the menu (fn, Option, F5,\n"
-                "Ctrl+Opt+V, or any custom key)."
-            ),
-            "emoji": "\u2328\ufe0f",
-        },
-        {
-            "title": "Pro Tip: Voice Isolation",
-            "subtitle": "Dramatically improve transcription accuracy.",
-            "body": (
-                "macOS has a built-in feature called Voice Isolation that uses\n"
-                "Apple's Neural Engine to filter background noise.\n\n"
-                "This makes a HUGE difference for Whisper accuracy — especially\n"
-                "with keyboard clicks, fans, music, or other people talking.\n\n"
-                "HOW TO ENABLE:\n\n"
-                "\u2022 Click the mic icon in your menu bar (appears during recording)\n"
-                "\u2022 Or open Control Center \u2192 Mic Mode\n"
-                "\u2022 Select 'Voice Isolation'\n\n"
-                "REQUIREMENTS:\n\n"
-                "\u2022 Apple Silicon Mac (M1 or later)\n"
-                "\u2022 macOS 12 Monterey or later\n\n"
-                "This is a system-wide setting — once enabled, it stays on\n"
-                "for all apps until you change it. We highly recommend it!"
-            ),
-            "emoji": "\U0001f3a4",
-        },
-        {
-            "title": f"You're all set!",
+            "title": "You\u2019re all set!",
             "subtitle": f"Thanks for choosing {APP_NAME}.",
             "body": (
-                f"We built {APP_NAME} because we needed it ourselves — and we\n"
-                "use it every day. We hope it's just as useful for you.\n\n"
-                f"{APP_NAME} is free, open-source, and community-driven.\n"
-                "If you find it helpful, please consider:\n"
-                "  \u2b50  Starring us on GitHub \u2014 helps others discover us\n"
-                "  \u2615  Buying us a coffee \u2014 supports development\n\n"
-                "Questions or issues? Visit our GitHub page \u2014 we read\n"
-                "every issue and appreciate all feedback.\n\n"
-                f"__{APP_AUTHOR}__\n"
-                "**PX Innovative.**"
+                "HOW TO RECORD:\n\n"
+                "\u2022 fn  \u2014  Double-tap to start recording\n"
+                "\u2022 fn  \u2014  Tap again to stop & transcribe\n"
+                "\u2022 ctrl  \u2014  Pause or resume a segment\n"
+                "\u2022 esc  \u2014  Cancel and discard recording\n"
+                "\u2022 Click the floating pill \u2192 REC button\n\n"
+                "PRO TIP:\n"
+                "Enable Voice Isolation in Control Center\n"
+                "\u2192 Mic Mode \u2192 Voice Isolation for much better accuracy.\n\n"
+                "If PX Dictate helps you, please \u2b50 star us on GitHub.\n"
+                f"Every star helps others discover {APP_NAME}.\n\n\n"
+                f"\u2014 {APP_AUTHOR}\n"
+                "PX Innovative"
             ),
-            "emoji": "\u2764\ufe0f",
+            "emoji": "\u2705",
             "actions": [
-                ("\u2b50 Star on GitHub", 3),
-                ("\u2615 Buy Us a Coffee", 4),
+                ("\u2b50  Star on GitHub", 3),
+                ("\u2615  Buy Us a Coffee", 4),
             ],
         },
     ]
@@ -752,6 +684,7 @@ class OnboardingWizard:
         self._next_btn = None
         self._checkbox = None
         self._action_btns = []
+        self._dots = []
 
     def show(self):
         """Show the wizard on the main thread."""
@@ -782,39 +715,24 @@ class OnboardingWizard:
         content = self._window.contentView()
         content.setWantsLayer_(True)
 
-        # Layout constants for 680x620 window
-        _TOP_Y = 230       # gray section starts lower — more room for body
-        _EMOJI_Y = 520     # emoji near top
-        _ICON_Y = 510      # icon near top
-        _TITLE_Y = 440     # title tight under icon
-        _SUBTITLE_Y = 418  # subtitle tight under title
-        _SEP_Y = 410       # separator
-        _BODY_Y = 58       # body text area
-        _BODY_H = 348      # very tall body
-        _ACTION_Y = 58     # action buttons
-        _BOTTOM_H = 48     # bottom bar
+        # Layout constants
+        _BOTTOM_H  = 62    # bottom bar height
+        _TOP_Y     = 398   # header section starts here (from bottom)
+        _ICON_Y    = 510   # icon bottom-left y (72px tall → top at 582)
+        _ICON_SIZE = 72
+        _TITLE_Y   = 476   # 28px title, 6px gap below icon
+        _SUB_Y     = 452   # 20px subtitle, 4px gap below title
+        _ACT_Y     = 72    # action buttons y
 
-        # Top area background (adapts to light/dark mode)
-        top_bg = AppKit.NSView.alloc().initWithFrame_(((0, _TOP_Y), (WIZARD_W, WIZARD_H - _TOP_Y)))
-        top_bg.setWantsLayer_(True)
-        top_bg.layer().setBackgroundColor_(
-            AppKit.NSColor.windowBackgroundColor().CGColor()
-        )
-        content.addSubview_(top_bg)
+        # Header background (same as window bg — unified look)
+        hdr_bg = AppKit.NSView.alloc().initWithFrame_(((0, _TOP_Y), (WIZARD_W, WIZARD_H - _TOP_Y)))
+        hdr_bg.setWantsLayer_(True)
+        hdr_bg.layer().setBackgroundColor_(AppKit.NSColor.windowBackgroundColor().CGColor())
+        content.addSubview_(hdr_bg)
 
-        # Emoji / icon area (compact — 32pt emoji, 80px icon)
-        self._emoji_field = AppKit.NSTextField.alloc().initWithFrame_(((0, _EMOJI_Y), (WIZARD_W, 50)))
-        self._emoji_field.setBezeled_(False)
-        self._emoji_field.setDrawsBackground_(False)
-        self._emoji_field.setEditable_(False)
-        self._emoji_field.setSelectable_(False)
-        self._emoji_field.setAlignment_(AppKit.NSTextAlignmentCenter)
-        self._emoji_field.setFont_(AppKit.NSFont.systemFontOfSize_(32))
-        content.addSubview_(self._emoji_field)
-
-        # App icon (shown only on page 1)
+        # App icon (page 1 only)
         self._icon_view = AppKit.NSImageView.alloc().initWithFrame_(
-            ((WIZARD_W / 2 - 40, _ICON_Y), (80, 80))
+            ((WIZARD_W / 2 - _ICON_SIZE / 2, _ICON_Y), (_ICON_SIZE, _ICON_SIZE))
         )
         icon = AppKit.NSImage.imageNamed_("AppIcon")
         if not icon:
@@ -827,10 +745,16 @@ class OnboardingWizard:
             self._icon_view.setImageScaling_(AppKit.NSImageScaleProportionallyUpOrDown)
         content.addSubview_(self._icon_view)
 
-        # Separator line
-        self._sep = AppKit.NSBox.alloc().initWithFrame_(((40, _SEP_Y), (WIZARD_W - 80, 1)))
-        self._sep.setBoxType_(AppKit.NSBoxSeparator)
-        content.addSubview_(self._sep)
+        # Emoji field (pages 2-3)
+        self._emoji_field = AppKit.NSTextField.alloc().initWithFrame_(((0, _ICON_Y + 4), (WIZARD_W, 64)))
+        self._emoji_field.setBezeled_(False)
+        self._emoji_field.setDrawsBackground_(False)
+        self._emoji_field.setEditable_(False)
+        self._emoji_field.setSelectable_(False)
+        self._emoji_field.setAlignment_(AppKit.NSTextAlignmentCenter)
+        self._emoji_field.setFont_(AppKit.NSFont.systemFontOfSize_(44))
+        self._emoji_field.setHidden_(True)
+        content.addSubview_(self._emoji_field)
 
         # Title
         self._title_field = AppKit.NSTextField.alloc().initWithFrame_(((40, _TITLE_Y), (WIZARD_W - 80, 28)))
@@ -839,43 +763,47 @@ class OnboardingWizard:
         self._title_field.setEditable_(False)
         self._title_field.setSelectable_(False)
         self._title_field.setAlignment_(AppKit.NSTextAlignmentCenter)
-        self._title_field.setFont_(AppKit.NSFont.systemFontOfSize_weight_(24, AppKit.NSFontWeightLight))
+        self._title_field.setFont_(AppKit.NSFont.systemFontOfSize_weight_(20, AppKit.NSFontWeightSemibold))
         self._title_field.setTextColor_(AppKit.NSColor.labelColor())
         content.addSubview_(self._title_field)
 
         # Subtitle
-        self._subtitle_field = AppKit.NSTextField.alloc().initWithFrame_(((40, _SUBTITLE_Y), (WIZARD_W - 80, 18)))
+        self._subtitle_field = AppKit.NSTextField.alloc().initWithFrame_(((40, _SUB_Y), (WIZARD_W - 80, 20)))
         self._subtitle_field.setBezeled_(False)
         self._subtitle_field.setDrawsBackground_(False)
         self._subtitle_field.setEditable_(False)
         self._subtitle_field.setSelectable_(False)
         self._subtitle_field.setAlignment_(AppKit.NSTextAlignmentCenter)
-        self._subtitle_field.setFont_(AppKit.NSFont.systemFontOfSize_(13))
+        self._subtitle_field.setFont_(AppKit.NSFont.systemFontOfSize_(12.5))
         self._subtitle_field.setTextColor_(AppKit.NSColor.secondaryLabelColor())
         content.addSubview_(self._subtitle_field)
 
-        # Body text (scrollable — generous height)
-        self._scroll = AppKit.NSScrollView.alloc().initWithFrame_(((80, _BODY_Y), (WIZARD_W - 160, _BODY_H)))
+        # Separator between header and body
+        self._sep = AppKit.NSBox.alloc().initWithFrame_(((0, _TOP_Y - 1), (WIZARD_W, 1)))
+        self._sep.setBoxType_(AppKit.NSBoxSeparator)
+        content.addSubview_(self._sep)
+
+        # Body scroll view (sized per-page in _update_page)
+        self._scroll = AppKit.NSScrollView.alloc().initWithFrame_(((48, 106), (WIZARD_W - 96, 280)))
         self._scroll.setHasVerticalScroller_(True)
         self._scroll.setHasHorizontalScroller_(False)
         self._scroll.setBorderType_(AppKit.NSNoBorder)
         self._scroll.setDrawsBackground_(False)
 
-        self._body_field = AppKit.NSTextView.alloc().initWithFrame_(((0, 0), (WIZARD_W - 180, _BODY_H)))
+        self._body_field = AppKit.NSTextView.alloc().initWithFrame_(((0, 0), (WIZARD_W - 112, 280)))
         self._body_field.setEditable_(False)
         self._body_field.setSelectable_(True)
         self._body_field.setDrawsBackground_(False)
-        self._body_field.setFont_(AppKit.NSFont.systemFontOfSize_(13.5))
-        self._body_field.setTextContainerInset_(AppKit.NSMakeSize(10, 5))
-        self._body_field.textContainer().setLineFragmentPadding_(5)
+        self._body_field.setFont_(AppKit.NSFont.systemFontOfSize_(13))
+        self._body_field.setTextContainerInset_(AppKit.NSMakeSize(0, 4))
+        self._body_field.textContainer().setLineFragmentPadding_(0)
         self._body_field.setAlignment_(AppKit.NSTextAlignmentLeft)
-
         self._scroll.setDocumentView_(self._body_field)
         content.addSubview_(self._scroll)
 
-        # Action buttons area (below body, for setup/thank you pages)
+        # Action buttons (Open Accessibility, Open Keyboard, GitHub, Coffee)
         for i in range(2):
-            btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W/2 - 200 + i*210, _ACTION_Y), (200, 28)))
+            btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W / 2 - 210 + i * 220, _ACT_Y), (200, 28)))
             btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
             btn.setTarget_(self._handler)
             btn.setAction_(objc.selector(self._handler.actionClicked_, signature=b'v@:@'))
@@ -883,53 +811,65 @@ class OnboardingWizard:
             content.addSubview_(btn)
             self._action_btns.append(btn)
 
-        # Bottom bar background (adapts to light/dark mode)
+        # Bottom bar
         bottom_bg = AppKit.NSView.alloc().initWithFrame_(((0, 0), (WIZARD_W, _BOTTOM_H)))
         bottom_bg.setWantsLayer_(True)
-        bottom_bg.layer().setBackgroundColor_(
-            AppKit.NSColor.separatorColor().CGColor()
-        )
+        bottom_bg.layer().setBackgroundColor_(AppKit.NSColor.separatorColor().CGColor())
         content.addSubview_(bottom_bg)
 
-        # Bottom separator
         sep2 = AppKit.NSBox.alloc().initWithFrame_(((0, _BOTTOM_H - 1), (WIZARD_W, 1)))
         sep2.setBoxType_(AppKit.NSBoxSeparator)
         content.addSubview_(sep2)
 
-        # "Don't show this window again" checkbox
-        self._checkbox = AppKit.NSButton.alloc().initWithFrame_(((20, 12), (250, 25)))
+        # Page indicator dots (centered in bottom bar)
+        _DOT_SIZE = 7
+        _DOT_GAP  = 8
+        num_pages = len(self.PAGES)
+        dots_total_w = num_pages * _DOT_SIZE + (num_pages - 1) * _DOT_GAP
+        dot_start_x = (WIZARD_W - dots_total_w) / 2
+        for i in range(num_pages):
+            dot = AppKit.NSView.alloc().initWithFrame_(
+                ((dot_start_x + i * (_DOT_SIZE + _DOT_GAP), (_BOTTOM_H - _DOT_SIZE) / 2 - 2), (_DOT_SIZE, _DOT_SIZE))
+            )
+            dot.setWantsLayer_(True)
+            dot.layer().setCornerRadius_(_DOT_SIZE / 2.0)
+            content.addSubview_(dot)
+            self._dots.append(dot)
+
+        # "Don't show" checkbox
+        self._checkbox = AppKit.NSButton.alloc().initWithFrame_(((16, 18), (220, 24)))
         self._checkbox.setButtonType_(AppKit.NSButtonTypeSwitch)
         self._checkbox.setTitle_("Don't show this window again")
-        self._checkbox.setFont_(AppKit.NSFont.systemFontOfSize_(12))
+        self._checkbox.setFont_(AppKit.NSFont.systemFontOfSize_(11.5))
         self._checkbox.setState_(AppKit.NSControlStateValueOff)
         self._checkbox.setTarget_(self._handler)
         self._checkbox.setAction_(objc.selector(self._handler.checkboxClicked_, signature=b'v@:@'))
         content.addSubview_(self._checkbox)
 
         # Previous button
-        self._prev_btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W - 220, 10), (90, 30)))
+        self._prev_btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W - 212, 16), (92, 30)))
         self._prev_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
-        self._prev_btn.setTitle_("Previous")
+        self._prev_btn.setTitle_("\u2190 Back")
         self._prev_btn.setTarget_(self._handler)
         self._prev_btn.setAction_(objc.selector(self._handler.prevClicked_, signature=b'v@:@'))
         content.addSubview_(self._prev_btn)
 
-        # Next/End button
-        self._next_btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W - 120, 10), (90, 30)))
+        # Next / Done button
+        self._next_btn = AppKit.NSButton.alloc().initWithFrame_(((WIZARD_W - 112, 16), (97, 30)))
         self._next_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
-        self._next_btn.setTitle_("Next")
+        self._next_btn.setTitle_("Next \u2192")
         self._next_btn.setTarget_(self._handler)
         self._next_btn.setAction_(objc.selector(self._handler.nextClicked_, signature=b'v@:@'))
-        self._next_btn.setKeyEquivalent_("\r")  # Enter key
+        self._next_btn.setKeyEquivalent_("\r")
         content.addSubview_(self._next_btn)
 
     def _set_body_text(self, page):
         """Set body text with rich formatting — bold headers, bold keys."""
         body = page.get("body", "")
         attr = AppKit.NSMutableAttributedString.alloc().init()
-        normal = AppKit.NSFont.systemFontOfSize_(13.5)
-        bold = AppKit.NSFont.systemFontOfSize_weight_(13.5, AppKit.NSFontWeightBold)
-        semi = AppKit.NSFont.systemFontOfSize_weight_(13.5, AppKit.NSFontWeightSemibold)
+        normal = AppKit.NSFont.systemFontOfSize_(13)
+        bold = AppKit.NSFont.systemFontOfSize_weight_(13, AppKit.NSFontWeightBold)
+        semi = AppKit.NSFont.systemFontOfSize_weight_(13, AppKit.NSFontWeightSemibold)
         black = AppKit.NSColor.labelColor()
         gray = AppKit.NSColor.secondaryLabelColor()
 
@@ -961,20 +901,42 @@ class OnboardingWizard:
                 )
             # Bullet points
             elif stripped.startswith("\u2022"):
-                # Remove leading bullet and space
                 content = stripped[1:].strip()
+                # "key — description" format: bold the key (fn, ctrl, esc, ⌘, etc.)
+                _KEY_SET = {"fn", "ctrl", "esc", "rec", "\u2318", "alt", "opt"}
+                _parts = content.split("\u2014", 1)
+                _key_bold = (
+                    len(_parts) == 2
+                    and _parts[0].strip().lower() in _KEY_SET
+                )
                 attr.appendAttributedString_(
                     AppKit.NSAttributedString.alloc().initWithString_attributes_(
                         "  \u2022  ",
                         {AppKit.NSFontAttributeName: normal, AppKit.NSForegroundColorAttributeName: black}
                     )
                 )
-                attr.appendAttributedString_(
-                    AppKit.NSAttributedString.alloc().initWithString_attributes_(
-                        content + "\n",
-                        {AppKit.NSFontAttributeName: normal, AppKit.NSForegroundColorAttributeName: black}
+                if _key_bold:
+                    _key = _parts[0].strip()
+                    _desc = _parts[1].strip()
+                    attr.appendAttributedString_(
+                        AppKit.NSAttributedString.alloc().initWithString_attributes_(
+                            _key,
+                            {AppKit.NSFontAttributeName: bold, AppKit.NSForegroundColorAttributeName: black}
+                        )
                     )
-                )
+                    attr.appendAttributedString_(
+                        AppKit.NSAttributedString.alloc().initWithString_attributes_(
+                            "  \u2014  " + _desc + "\n",
+                            {AppKit.NSFontAttributeName: normal, AppKit.NSForegroundColorAttributeName: gray}
+                        )
+                    )
+                else:
+                    attr.appendAttributedString_(
+                        AppKit.NSAttributedString.alloc().initWithString_attributes_(
+                            content + "\n",
+                            {AppKit.NSFontAttributeName: normal, AppKit.NSForegroundColorAttributeName: black}
+                        )
+                    )
             # Keyboard shortcut lines (contain em-dash after key name)
             elif "\u2014" in stripped and not stripped.startswith("STEP") and any(k in stripped for k in ["fn", "Control", "ESC", "\u2318"]):
                 parts = stripped.split("\u2014", 1)
@@ -1011,6 +973,27 @@ class OnboardingWizard:
                         {AppKit.NSFontAttributeName: bold, AppKit.NSForegroundColorAttributeName: black}
                     )
                 )
+            # Author name line (— Author)
+            elif stripped == f"\u2014 {APP_AUTHOR}":
+                italic = AppKit.NSFontManager.sharedFontManager().convertFont_toHaveTrait_(normal, AppKit.NSItalicFontMask)
+                attr.appendAttributedString_(
+                    AppKit.NSAttributedString.alloc().initWithString_attributes_(
+                        stripped + "\n",
+                        {AppKit.NSFontAttributeName: italic, AppKit.NSForegroundColorAttributeName: black}
+                    )
+                )
+            # Company hyperlink line
+            elif stripped == "PX Innovative":
+                attr.appendAttributedString_(
+                    AppKit.NSAttributedString.alloc().initWithString_attributes_(
+                        stripped + "\n",
+                        {
+                            AppKit.NSFontAttributeName: semi,
+                            AppKit.NSForegroundColorAttributeName: AppKit.NSColor.linkColor(),
+                            AppKit.NSLinkAttributeName: "https://pxinnovative.com",
+                        }
+                    )
+                )
             # Normal text
             else:
                 attr.appendAttributedString_(
@@ -1027,40 +1010,29 @@ class OnboardingWizard:
             return
         page = self.PAGES[self._page]
 
-        # Update emoji/icon
+        # Icon / emoji
         show_icon = page.get("show_icon", False)
         self._icon_view.setHidden_(not show_icon)
-        if show_icon:
-            self._emoji_field.setHidden_(True)
-        else:
-            self._emoji_field.setHidden_(False)
+        self._emoji_field.setHidden_(show_icon)
+        if not show_icon:
             self._emoji_field.setStringValue_(page.get("emoji", ""))
-            # Use larger font for keyboard emoji
-            if page.get("emoji") == "\u2328\ufe0f":
-                self._emoji_field.setFont_(AppKit.NSFont.systemFontOfSize_(60))
-            else:
-                self._emoji_field.setFont_(AppKit.NSFont.systemFontOfSize_(32))
 
-        # Adjust layout: pages with icon use original Y, pages with emoji shift up
-        if show_icon:
-            title_y, subtitle_y, sep_y, body_h = 440, 418, 410, 348
-        else:
-            title_y, subtitle_y, sep_y, body_h = 490, 468, 460, 398
-        self._title_field.setFrame_(((40, title_y), (WIZARD_W - 80, 28)))
-        self._subtitle_field.setFrame_(((40, subtitle_y), (WIZARD_W - 80, 18)))
-        self._sep.setFrame_(((40, sep_y), (WIZARD_W - 80, 1)))
-        self._scroll.setFrame_(((80, 58), (WIZARD_W - 160, body_h)))
-        self._body_field.setFrame_(((0, 0), (WIZARD_W - 180, body_h)))
-
-        # Update text
+        # Text
         self._title_field.setStringValue_(page["title"])
         self._subtitle_field.setStringValue_(page["subtitle"])
         self._set_body_text(page)
-        # Reset scroll to top
         self._body_field.scrollRangeToVisible_(AppKit.NSMakeRange(0, 0))
 
-        # Action buttons
+        # Body height: taller when no action buttons
         actions = page.get("actions", [])
+        if actions:
+            self._scroll.setFrame_(((48, 108), (WIZARD_W - 96, 280)))
+            self._body_field.setFrame_(((0, 0), (WIZARD_W - 112, 280)))
+        else:
+            self._scroll.setFrame_(((48, 72), (WIZARD_W - 96, 316)))
+            self._body_field.setFrame_(((0, 0), (WIZARD_W - 112, 316)))
+
+        # Action buttons
         for i, btn in enumerate(self._action_btns):
             if i < len(actions):
                 btn.setTitle_(actions[i][0])
@@ -1069,10 +1041,15 @@ class OnboardingWizard:
             else:
                 btn.setHidden_(True)
 
+        # Page indicator dots
+        for i, dot in enumerate(self._dots):
+            color = AppKit.NSColor.controlAccentColor() if i == self._page else AppKit.NSColor.tertiaryLabelColor()
+            dot.layer().setBackgroundColor_(color.CGColor())
+
         # Navigation buttons
         self._prev_btn.setHidden_(self._page == 0)
         is_last = self._page == len(self.PAGES) - 1
-        self._next_btn.setTitle_("End" if is_last else "Next")
+        self._next_btn.setTitle_("Done" if is_last else "Next \u2192")
         if is_last:
             self._next_btn.setAction_(objc.selector(self._handler.endClicked_, signature=b'v@:@'))
         else:
@@ -2365,8 +2342,9 @@ class FloatingWidget:
         self._progress_active = False
         def _do():
             if self.bar_view and self._bar_max_w:
-                # Snap to 100%
                 self.bar_view.setFrame_(((BAR_INSET, 5), (self._bar_max_w, 8)))
+            if self.label:
+                self.label.setStringValue_("Transcribing... 100%")
         _on_main(_do)
         # Brief delay then hide
         def _hide_later():
