@@ -2350,6 +2350,8 @@ class FloatingWidget:
                     if self.bar_view and self._bar_max_w:
                         width = max(1, int(pv / 100.0 * self._bar_max_w))
                         self.bar_view.setFrame_(((BAR_INSET, 5), (width, 8)))
+                    if self.label:
+                        self.label.setStringValue_(f"Transcribing... {pv}%")
                 _on_main(_do)
                 time.sleep(0.1)
         threading.Thread(target=_slow_fill, daemon=True).start()
@@ -2357,7 +2359,6 @@ class FloatingWidget:
     def update_progress(self, pct):
         """Update progress target from whisper real data."""
         self._progress_target = pct
-        self._set_label(f"Transcribing... {pct}%")
 
     def hide_progress_bar(self):
         """Quick snap to 100% and hide — non-blocking."""
