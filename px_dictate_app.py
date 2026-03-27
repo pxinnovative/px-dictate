@@ -60,7 +60,7 @@ _log.info("WHISPER_CLI will be resolved after config section")
 
 # ── App Info ────────────────────────────────────────────────────────────
 APP_NAME = "PX Dictate"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.3"
 APP_BUNDLE_ID = "com.pxinnovative.pxdictate"
 APP_AUTHOR = "Victor Kerber"
 APP_COMPANY = "PX Innovative Solutions Inc."
@@ -146,7 +146,7 @@ SAMPLE_RATE = 16000
 CHANNELS = 1
 FORMAT = pyaudio.paInt16
 CHUNK = 1024
-SENSITIVITY = float(os.environ.get("PX_DICTATE_SENSITIVITY", "8.0"))
+SENSITIVITY = float(os.environ.get("PX_DICTATE_SENSITIVITY", "5.0"))
 DEFAULT_LANG = os.environ.get("PX_DICTATE_LANG", "auto")
 HISTORY_MAX = 10
 
@@ -163,9 +163,13 @@ WHISPER_HALLUCINATIONS = {
     "thank you for watching.", "thank you for watching",
     "thanks for watching.", "thanks for watching",
     "thank you.", "thank you",
+    "thank you. the meeting is at 3 p.m.",
     "thanks for watching this video.", "thanks for watching this video",
     "sous-titres réalisés par la communauté d'amara.org",
     "subtítulos realizados por la comunidad de amara.org",
+    "[audio_en_blanco]", "[audio en blanco]",
+    "[blank_audio]", "[blank audio]",
+    "(audio en blanco)", "(blank audio)",
     "amara.org",
     "you",
     "bye.", "bye",
@@ -204,10 +208,10 @@ PILL_W = 180
 PILL_H = 40
 HINT_W = 210
 HINT_H = 46
-MINI_W = 56
-MINI_H = 22
-MINI_HOVER_W = 62
-MINI_HOVER_H = 25
+MINI_W = 52
+MINI_H = 20
+MINI_HOVER_W = 56
+MINI_HOVER_H = 23
 REC_PILL_W = 220
 REC_PILL_H = 44
 
@@ -220,8 +224,10 @@ CORNER_RADIUS_BUTTON = 7.0
 MIN_MENUBAR_H = 24
 
 # ── VU Meter Thresholds ──────────────────────────────────────────────────
-VU_THRESHOLD_LOW = 0.4
-VU_THRESHOLD_HIGH = 0.7
+VU_THRESHOLD_GREEN = 0.7   # 0–70% = green
+VU_THRESHOLD_YELLOW = 0.85 # 70–85% = yellow
+VU_THRESHOLD_ORANGE = 0.95 # 85–95% = orange
+# 95–100% = red (only extreme peaks)
 
 ALPHA_MINI = 0.45
 ALPHA_HOVER = 0.75
@@ -249,25 +255,27 @@ THEMES = {
         "button_bg": (0.25, 0.25, 0.25, 0.85),
         "button_bg_hover": (0.25, 0.25, 0.25, 0.95),
         "stop_bg": (1.0, 0.15, 0.15, 0.9),
-        "rec_bg": (0.95, 0.05, 0.05, 0.95),
+        "rec_bg": (0.95, 0.15, 0.15, 0.15),
         "pause_resume_bg": (0.1, 0.6, 0.2, 0.85),
         "bar_bg": (0.1, 0.1, 0.1, 0.75),
         "vu_color_low": (0.2, 0.9, 0.3),
         "vu_color_mid": (1.0, 0.85, 0.0),
+        "vu_color_orange": (1.0, 0.55, 0.1),
         "vu_color_high": (1.0, 0.15, 0.15),
         "key_bg": (0.3, 0.3, 0.3, 0.9),
         "key_bg_light": (0.75, 0.75, 0.75, 0.6),
         "border_width": 1,
         "border_color": (0.4, 0.4, 0.4, 0.5),
         "shadow_radius": 0,
+        "vibrancy_alpha": 1.0,
     },
     "glass": {
         "name": "Glass",
-        "material": "UnderWindowBackground",
+        "material": "Sheet",
         "alpha_mini": 0.25,
         "alpha_hover": 0.55,
-        "alpha_expanded": 0.85,
-        "corner_radius_pill": 16.0,
+        "alpha_expanded": 0.75,
+        "corner_radius_pill": 10.0,
         "corner_radius_panel": 22.0,
         "button_corner": 8.0,
         "dot_dark": (0.9, 0.9, 0.95),
@@ -286,28 +294,31 @@ THEMES = {
         "bar_bg": (0.4, 0.4, 0.45, 0.25),
         "vu_color_low": (0.45, 0.88, 0.55),
         "vu_color_mid": (0.95, 0.88, 0.45),
-        "vu_color_high": (0.95, 0.5, 0.45),
+        "vu_color_orange": (0.95, 0.6, 0.25),
+        "vu_color_high": (0.95, 0.2, 0.2),
         "key_bg": (0.6, 0.6, 0.65, 0.4),
         "key_bg_light": (0.8, 0.8, 0.85, 0.5),
         "border_width": 1,
         "border_color": (0.8, 0.8, 0.85, 0.3),
         "shadow_radius": 0,
+        "vibrancy_alpha": 0.85,
     },
     "minimal": {
         "name": "Minimal",
-        "material": "Popover",
-        "alpha_mini": 0.15,
-        "alpha_hover": 0.4,
-        "alpha_expanded": 0.6,
-        "corner_radius_pill": 20.0,
+        "material": "UnderPageBackground",
+        "alpha_mini": 0.25,
+        "alpha_hover": 0.5,
+        "alpha_expanded": 1.0,
+        "vibrancy_alpha": 0.08,
+        "corner_radius_pill": 10.0,
         "corner_radius_panel": 26.0,
         "button_corner": 10.0,
-        "dot_dark": (0.5, 0.5, 0.5),
-        "dot_light": (0.4, 0.4, 0.4),
-        "dot_hover_dark": (0.8, 0.8, 0.8),
-        "dot_hover_light": (0.2, 0.2, 0.2),
-        "text_color": (0.85, 0.85, 0.85),
-        "hint_text_color": (0.7, 0.7, 0.7),
+        "dot_dark": (0.75, 0.75, 0.75),
+        "dot_light": (0.3, 0.3, 0.3),
+        "dot_hover_dark": (0.95, 0.95, 0.95),
+        "dot_hover_light": (0.15, 0.15, 0.15),
+        "text_color": (0.92, 0.92, 0.92),
+        "hint_text_color": (0.8, 0.8, 0.8),
         "text_color_light": (0.1, 0.1, 0.1),
         "hint_text_color_light": (0.25, 0.25, 0.25),
         "button_bg": (0.4, 0.4, 0.4, 0.25),
@@ -315,15 +326,16 @@ THEMES = {
         "stop_bg": (0.6, 0.25, 0.25, 0.3),
         "rec_bg": (0.55, 0.15, 0.15, 0.35),
         "pause_resume_bg": (0.2, 0.4, 0.25, 0.3),
-        "bar_bg": (0.25, 0.25, 0.25, 0.15),
+        "bar_bg": (0.25, 0.25, 0.25, 0.08),
         "vu_color_low": (0.6, 0.6, 0.6),
         "vu_color_mid": (0.75, 0.75, 0.75),
+        "vu_color_orange": (0.83, 0.83, 0.83),
         "vu_color_high": (0.9, 0.9, 0.9),
         "key_bg": (0.25, 0.25, 0.25, 0.6),
         "key_bg_light": (0.7, 0.7, 0.7, 0.5),
         "border_width": 0,
         "border_color": (0.5, 0.5, 0.5, 0.0),
-        "shadow_radius": 8.0,
+        "shadow_radius": 0,
     },
 }
 
@@ -1133,37 +1145,72 @@ def _show_wizard():
     wizard.show()
 
 
-def transcribe(audio_path: str, lang: str = "auto") -> str:
+def _audio_has_speech(frames, threshold=300):
+    """Check if audio frames contain speech (not just silence/noise).
+    Returns True if RMS energy exceeds threshold."""
+    if not frames:
+        return False
+    raw = b"".join(frames)
+    if len(raw) < 2:
+        return False
+    # Calculate RMS energy
+    count = len(raw) // 2
+    total = 0
+    for i in range(count):
+        sample = struct.unpack_from('<h', raw, i * 2)[0]
+        total += sample * sample
+    rms = math.sqrt(total / max(count, 1))
+    return rms > threshold
+
+
+def transcribe(audio_path: str, lang: str = "auto", on_progress=None) -> str:
     # NOTE: This does NOT use transcriber.py's Transcriber class because the app
     # needs custom prompt support (WHISPER_PROMPT), artifact cleaning
     # (_WHISPER_ARTIFACTS), and UTF-8/Latin-1 fallback decoding that the
     # standalone module does not provide.
     cmd = [
         WHISPER_CLI, "-m", WHISPER_MODEL, "-f", audio_path,
-        "--no-timestamps", "-t", str(WHISPER_THREADS), "-l", lang,
+        "--no-timestamps", "--print-progress", "-t", str(WHISPER_THREADS), "-l", lang,
         "--prompt", WHISPER_PROMPT,
     ]
     _log.info("Transcribe cmd: %s", " ".join(cmd))
     _log.info("Audio file size: %d bytes", os.path.getsize(audio_path) if os.path.exists(audio_path) else 0)
     try:
         env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
-        result = subprocess.run(cmd, capture_output=True, timeout=WHISPER_TIMEOUT, env=env)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        # Read stderr in real-time for progress, collect stdout
+        stderr_lines = []
+        _progress_re = re.compile(r'progress\s*=\s*(\d+)%')
+        def _read_stderr():
+            for raw_line in proc.stderr:
+                try:
+                    line = raw_line.decode('utf-8')
+                except UnicodeDecodeError:
+                    line = raw_line.decode('latin-1')
+                stderr_lines.append(line)
+                if on_progress:
+                    m = _progress_re.search(line)
+                    if m:
+                        on_progress(min(int(m.group(1)), 100))
+        stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+        stderr_thread.start()
+        # Read stdout (blocks until process finishes)
+        raw_stdout = proc.stdout.read()
+        proc.wait(timeout=WHISPER_TIMEOUT)
+        stderr_thread.join(timeout=5)
     except FileNotFoundError:
         _log.error("whisper-cli not found at: %s", WHISPER_CLI)
         return ""
     except Exception as e:
         _log.error("Transcribe exception: %s", e)
         return ""
-    _log.info("whisper-cli returncode=%d", result.returncode)
-    # Decode output — try UTF-8 first, fall back to Latin-1
+    _log.info("whisper-cli returncode=%d", proc.returncode)
+    # Decode stdout
     try:
-        stdout = result.stdout.decode('utf-8')
+        stdout = raw_stdout.decode('utf-8')
     except UnicodeDecodeError:
-        stdout = result.stdout.decode('latin-1')
-    try:
-        stderr = result.stderr.decode('utf-8')
-    except UnicodeDecodeError:
-        stderr = result.stderr.decode('latin-1')
+        stdout = raw_stdout.decode('latin-1')
+    stderr = "".join(stderr_lines)
 
     if stdout:
         _log.info("stdout length: %d chars", len(stdout))
@@ -1172,7 +1219,7 @@ def transcribe(audio_path: str, lang: str = "auto") -> str:
 
     output = stdout
 
-    if result.returncode != 0:
+    if proc.returncode != 0:
         _log.warning("Non-zero returncode, returning empty")
         return ""
     lines = []
@@ -1685,6 +1732,9 @@ class FloatingWidget:
         self._hint_mode = False
         self._recording_mode = False
         self._msg_stop = True
+        self._rec_start_time = None
+        self._rec_elapsed = 0  # accumulated seconds (survives pauses)
+        self._rec_timer_active = False
         self._ready = threading.Event()
         self._bar_max_w = PILL_W - 24
         self._hovering = False
@@ -1736,6 +1786,8 @@ class FloatingWidget:
             "HUDWindow": AppKit.NSVisualEffectMaterialHUDWindow,
             "UnderWindowBackground": AppKit.NSVisualEffectMaterialUnderWindowBackground,
             "Popover": AppKit.NSVisualEffectMaterialPopover,
+            "UnderPageBackground": AppKit.NSVisualEffectMaterialUnderPageBackground,
+            "Sheet": AppKit.NSVisualEffectMaterialSheet,
         }
         return materials.get(material_name, AppKit.NSVisualEffectMaterialHUDWindow)
 
@@ -1769,7 +1821,7 @@ class FloatingWidget:
             shadow_r = t.get("shadow_radius", 0)
             content = self.window.contentView()
             if shadow_r > 0:
-                content.layer().setShadowOpacity_(0.5)
+                content.layer().setShadowOpacity_(0.25)
                 content.layer().setShadowRadius_(shadow_r)
                 content.layer().setShadowOffset_(Quartz.CGSizeMake(0, 0))
                 content.layer().setShadowColor_(
@@ -1784,6 +1836,9 @@ class FloatingWidget:
                 self.window.setAlphaValue_(t["alpha_hover"])
             else:
                 self.window.setAlphaValue_(t["alpha_mini"])
+            # Vibrancy-only alpha (for minimal: invisible background, visible elements)
+            va = t.get("vibrancy_alpha", 1.0)
+            self.vibrancy.setAlphaValue_(va)
             # Update dot color
             if not self._expanded:
                 self.mini_label.setTextColor_(self._dot_color(hover=self._hovering))
@@ -1800,16 +1855,52 @@ class FloatingWidget:
             if self._rec_bg:
                 self._rec_bg.layer().setBackgroundColor_(self._theme_color("rec_bg").CGColor())
                 self._rec_bg.layer().setCornerRadius_(t.get("button_corner", CORNER_RADIUS_BUTTON))
+                if theme_name == "classic":
+                    self._rec_bg.layer().setBorderWidth_(1.5)
+                    self._rec_bg.layer().setBorderColor_(
+                        AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.9, 0.15, 0.15, 0.8).CGColor()
+                    )
+                else:
+                    self._rec_bg.layer().setBorderWidth_(0)
             if self.rec_btn:
                 self.rec_btn.setTextColor_(self._theme_color("text_color"))
             if self.bar_bg:
                 self.bar_bg.layer().setBackgroundColor_(self._theme_color("bar_bg").CGColor())
+            # Update button icons — Classic uses emoji, Glass/Minimal use SF Symbols
+            self._update_button_icons(theme_name)
             # Update label text colors if visible
             if self.label and not self.label.isHidden():
                 self.label.setTextColor_(self._theme_color("text_color"))
             if self.label2 and not self.label2.isHidden():
                 self.label2.setTextColor_(self._theme_color("hint_text_color"))
         _on_main(_do)
+
+    def _update_button_icons(self, theme_name=None):
+        """Update button icons based on theme — Classic=emoji, others=SF Symbols."""
+        tn = theme_name or self._theme_name
+        use_sf = (tn != "classic")
+        if self.pause_btn:
+            if use_sf:
+                self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
+            else:
+                self._setup_label(self.pause_btn, "\u23f8", 11, AppKit.NSFontWeightBold,
+                                  self._theme_color("text_color"))
+        if self.stop_btn:
+            if use_sf:
+                self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11, y_offset=-8))
+            else:
+                self._setup_label(self.stop_btn, "\u23f9", 11, AppKit.NSFontWeightBold,
+                                  self._theme_color("text_color"))
+        if self.rec_btn:
+            if use_sf:
+                self.rec_btn.setAttributedStringValue_(self._sf_attributed("record.circle.fill", " REC", size=11, y_offset=-8))
+            else:
+                self._setup_label(self.rec_btn, "\U0001f534 REC", 11, AppKit.NSFontWeightHeavy,
+                                  self._theme_color("text_color"))
+
+    def _use_sf_symbols(self):
+        """Return True if current theme should use SF Symbols instead of emoji."""
+        return self._theme_name != "classic"
 
     def _make_attributed(self, parts, size=10.5, center=True):
         result = AppKit.NSMutableAttributedString.alloc().init()
@@ -1831,6 +1922,47 @@ class FloatingWidget:
                 attrs[AppKit.NSBackgroundColorAttributeName] = key_bg
             part = AppKit.NSAttributedString.alloc().initWithString_attributes_(text, attrs)
             result.appendAttributedString_(part)
+        return result
+
+    def _sf_symbol_image(self, name, size=12, color=None):
+        """Create an NSImage from an SF Symbol name."""
+        img = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
+        if img is None:
+            return None
+        # Configure size
+        config = AppKit.NSImageSymbolConfiguration.configurationWithPointSize_weight_(size, AppKit.NSFontWeightMedium)
+        img = img.imageWithSymbolConfiguration_(config)
+        if color:
+            img = img.imageWithTintColor_(color)
+        img.setTemplate_(True)
+        return img
+
+    def _sf_attributed(self, symbol_name, text="", size=11, color=None, y_offset=-3):
+        """Create an attributed string with an SF Symbol image + optional text, centered."""
+        clr = color or self._theme_color("text_color")
+        result = AppKit.NSMutableAttributedString.alloc().init()
+        para = AppKit.NSMutableParagraphStyle.alloc().init()
+        para.setAlignment_(AppKit.NSTextAlignmentCenter)
+        img = self._sf_symbol_image(symbol_name, size=size, color=clr)
+        if img:
+            attachment = AppKit.NSTextAttachment.alloc().init()
+            cell = AppKit.NSTextAttachmentCell.alloc().initImageCell_(img)
+            attachment.setAttachmentCell_(cell)
+            attachment.setBounds_(((0, y_offset), (img.size().width, img.size().height)))
+            img_str = AppKit.NSAttributedString.attributedStringWithAttachment_(attachment)
+            # Wrap in mutable to add paragraph style
+            mut_img = AppKit.NSMutableAttributedString.alloc().initWithAttributedString_(img_str)
+            mut_img.addAttribute_value_range_(AppKit.NSParagraphStyleAttributeName, para, AppKit.NSMakeRange(0, mut_img.length()))
+            result.appendAttributedString_(mut_img)
+        if text:
+            font = AppKit.NSFont.systemFontOfSize_weight_(size, AppKit.NSFontWeightBold)
+            attrs = {
+                AppKit.NSFontAttributeName: font,
+                AppKit.NSForegroundColorAttributeName: clr,
+                AppKit.NSParagraphStyleAttributeName: para,
+            }
+            txt_str = AppKit.NSAttributedString.alloc().initWithString_attributes_(text, attrs)
+            result.appendAttributedString_(txt_str)
         return result
 
     def _create_window(self):
@@ -1893,17 +2025,19 @@ class FloatingWidget:
         # Apply theme shadow
         _init_sr = _init_t.get("shadow_radius", 0)
         if _init_sr > 0:
-            content.layer().setShadowOpacity_(0.5)
+            content.layer().setShadowOpacity_(0.25)
             content.layer().setShadowRadius_(_init_sr)
             content.layer().setShadowOffset_(Quartz.CGSizeMake(0, 0))
             content.layer().setShadowColor_(
                 Quartz.CGColorCreateGenericGray(0.0, 1.0)
             )
         content.addSubview_(self.vibrancy)
+        _init_va = _init_t.get("vibrancy_alpha", 1.0)
+        self.vibrancy.setAlphaValue_(_init_va)
 
         # Mini dots — nudged down for visual centering
         self.mini_label = AppKit.NSTextField.alloc().initWithFrame_(((0, -2), (MINI_W, MINI_H)))
-        self._setup_label(self.mini_label, "· · ·", 12, AppKit.NSFontWeightBold,
+        self._setup_label(self.mini_label, "· · ·", 10, AppKit.NSFontWeightBold,
                           self._dot_color())
         content.addSubview_(self.mini_label)
 
@@ -1942,9 +2076,13 @@ class FloatingWidget:
         content.addSubview_(self.bar_view)
 
         # Pause button (hidden, shown during recording)
-        self.pause_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 80, 24), (32, 16)))
-        self._setup_label(self.pause_btn, "⏸", 11, AppKit.NSFontWeightBold,
-                          self._theme_color("text_color"))
+        self.pause_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 80, 21), (32, 16)))
+        self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
+        self.pause_btn.setBezeled_(False)
+        self.pause_btn.setDrawsBackground_(False)
+        self.pause_btn.setEditable_(False)
+        self.pause_btn.setSelectable_(False)
+        self.pause_btn.setAlignment_(AppKit.NSTextAlignmentCenter)
         self.pause_btn.setWantsLayer_(True)
         self.pause_btn.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_SMALL))
         self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
@@ -1952,9 +2090,13 @@ class FloatingWidget:
         content.addSubview_(self.pause_btn)
 
         # Stop button (hidden, shown during recording)
-        self.stop_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 44, 24), (32, 16)))
-        self._setup_label(self.stop_btn, "\u23f9", 11, AppKit.NSFontWeightBold,
-                          self._theme_color("text_color"))
+        self.stop_btn = AppKit.NSTextField.alloc().initWithFrame_(((REC_PILL_W - 44, 21), (32, 16)))
+        self.stop_btn.setAttributedStringValue_(self._sf_attributed("stop.fill", size=11, y_offset=-8))
+        self.stop_btn.setBezeled_(False)
+        self.stop_btn.setDrawsBackground_(False)
+        self.stop_btn.setEditable_(False)
+        self.stop_btn.setSelectable_(False)
+        self.stop_btn.setAlignment_(AppKit.NSTextAlignmentCenter)
         self.stop_btn.setWantsLayer_(True)
         self.stop_btn.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_SMALL))
         self.stop_btn.layer().setBackgroundColor_(self._theme_color("stop_bg").CGColor())
@@ -1967,12 +2109,22 @@ class FloatingWidget:
         self._rec_bg.setWantsLayer_(True)
         self._rec_bg.layer().setCornerRadius_(self._get_theme().get("button_corner", CORNER_RADIUS_BUTTON))
         self._rec_bg.layer().setBackgroundColor_(self._theme_color("rec_bg").CGColor())
+        # Red border for REC button (visible in Classic theme)
+        if self._theme_name == "classic":
+            self._rec_bg.layer().setBorderWidth_(1.5)
+            self._rec_bg.layer().setBorderColor_(
+                AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.9, 0.15, 0.15, 0.8).CGColor()
+            )
         self._rec_bg.setHidden_(True)
         content.addSubview_(self._rec_bg)
         # Text label centered inside the bg view — use tight height to avoid top-align gap
-        self.rec_btn = AppKit.NSTextField.alloc().initWithFrame_(((0, 2), (56, 20)))
-        self._setup_label(self.rec_btn, "\U0001f534 REC", 11, AppKit.NSFontWeightHeavy,
-                          self._theme_color("text_color"))
+        self.rec_btn = AppKit.NSTextField.alloc().initWithFrame_(((0, 3), (56, 20)))
+        self.rec_btn.setAttributedStringValue_(self._sf_attributed("record.circle.fill", " REC", size=11, y_offset=-8))
+        self.rec_btn.setBezeled_(False)
+        self.rec_btn.setDrawsBackground_(False)
+        self.rec_btn.setEditable_(False)
+        self.rec_btn.setSelectable_(False)
+        self.rec_btn.setAlignment_(AppKit.NSTextAlignmentCenter)
         self._rec_bg.addSubview_(self.rec_btn)
 
         self.window.orderFrontRegardless()
@@ -2105,6 +2257,66 @@ class FloatingWidget:
             self.window.setFrame_display_(((x, y), (w, h)), True)
         _on_main(_do)
 
+    def show_progress_bar(self):
+        """Show the VU bar as a progress bar (blue) during transcription."""
+        self._progress_target = 0
+        self._progress_current = 0.0
+        self._progress_active = True
+        def _do():
+            if not self.bar_bg or not self.bar_view:
+                return
+            self.bar_bg.setHidden_(False)
+            self.bar_view.setHidden_(False)
+            self.bar_view.setFrame_(((BAR_INSET, 5), (1, 8)))
+            self.bar_view.layer().setBackgroundColor_(
+                AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.25, 0.55, 0.95, 1.0).CGColor()
+            )
+        _on_main(_do)
+        # Start a progress animation that creeps forward until real data arrives
+        def _slow_fill():
+            while self._progress_active and self._progress_current < 90:
+                if self._progress_target > self._progress_current:
+                    # Real data from whisper — chase it quickly
+                    self._progress_current = min(self._progress_current + 2.0, self._progress_target)
+                else:
+                    # No real data yet — creep forward (max 90%)
+                    self._progress_current = min(self._progress_current + 1.0, 90)
+                p = int(self._progress_current)
+                def _do(pv=p):
+                    if self.bar_view and self._bar_max_w:
+                        width = max(1, int(pv / 100.0 * self._bar_max_w))
+                        self.bar_view.setFrame_(((BAR_INSET, 5), (width, 8)))
+                        if self.label:
+                            self.label.setStringValue_(f"Transcribing... {pv}%")
+                _on_main(_do)
+                time.sleep(0.1)
+        threading.Thread(target=_slow_fill, daemon=True).start()
+
+    def update_progress(self, pct):
+        """Update progress target from whisper real data."""
+        self._progress_target = pct
+
+    def hide_progress_bar(self):
+        """Quick snap to 100% and hide — non-blocking."""
+        self._progress_active = False
+        def _do():
+            if self.bar_view and self._bar_max_w:
+                # Snap to 100%
+                self.bar_view.setFrame_(((BAR_INSET, 5), (self._bar_max_w, 8)))
+            if self.label:
+                self.label.setStringValue_("Transcribing... 100%")
+        _on_main(_do)
+        # Brief delay then hide
+        def _hide_later():
+            time.sleep(0.5)
+            def _hide():
+                if self.bar_view:
+                    self.bar_view.setHidden_(True)
+                if self.bar_bg:
+                    self.bar_bg.setHidden_(True)
+            _on_main(_hide)
+        threading.Thread(target=_hide_later, daemon=True).start()
+
     def _show_hint(self):
         self._ready.wait()
         self._expanded = True
@@ -2195,20 +2407,28 @@ class FloatingWidget:
             self.vibrancy.layer().setCornerRadius_(self._get_theme()["corner_radius_panel"])
             self.mini_label.setHidden_(True)
 
-            self.label.setFrame_(((10, 26), (REC_PILL_W - 100, 14)))
+            self.label.setFrame_(((12, 26), (REC_PILL_W - 102, 14)))
             self.label.setFont_(AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium))
             self.label.setTextColor_(self._theme_color("text_color"))
-            self.label.setStringValue_("🎙️ Recording...")
+            if self._use_sf_symbols():
+                self.label.setAttributedStringValue_(self._sf_attributed("mic.fill", " Recording...", size=9.5))
+            else:
+                self.label.setStringValue_("\U0001f399\ufe0f Recording...")
             self.label.setAlignment_(AppKit.NSTextAlignmentLeft)
             self.label.setHidden_(False)
-            self.label2.setHidden_(True)
+            self.label2.setFrame_(((12, 10), (50, 14)))
+            self.label2.setStringValue_("00:00")
+            self.label2.setFont_(AppKit.NSFont.monospacedDigitSystemFontOfSize_weight_(9, AppKit.NSFontWeightRegular))
+            self.label2.setTextColor_(self._theme_color("hint_text_color"))
+            self.label2.setAlignment_(AppKit.NSTextAlignmentLeft)
+            self.label2.setHidden_(False)
             self._rec_bg.setHidden_(True)
 
             # Show pause and stop buttons
-            self.pause_btn.setFrame_(((REC_PILL_W - 80, 24), (32, 16)))
-            self.pause_btn.setStringValue_("⏸")
+            self.pause_btn.setFrame_(((REC_PILL_W - 80, 21), (32, 16)))
+            self._update_button_icons()
             self.pause_btn.setHidden_(False)
-            self.stop_btn.setFrame_(((REC_PILL_W - 44, 24), (32, 16)))
+            self.stop_btn.setFrame_(((REC_PILL_W - 44, 21), (32, 16)))
             self.stop_btn.setHidden_(False)
 
             # Level bar — adjusted for wider pill
@@ -2263,9 +2483,19 @@ class FloatingWidget:
                     break
                 toggle = not toggle
                 if toggle:
-                    self._set_label("🎙️ Recording — esc to cancel")
+                    if self._use_sf_symbols():
+                        self._set_sf_label("mic.fill", [("press ", False), ("ESC", True), (" to cancel", False)])
+                    else:
+                        self._set_attributed_label([
+                            ("\U0001f399\ufe0f press ", False), ("ESC", True), (" to cancel", False),
+                        ])
                 else:
-                    self._set_label("🎙️ Ctrl to pause")
+                    if self._use_sf_symbols():
+                        self._set_sf_label("mic.fill", [("press ", False), ("CTRL", True), (" to pause", False)])
+                    else:
+                        self._set_attributed_label([
+                            ("\U0001f399\ufe0f press ", False), ("CTRL", True), (" to pause", False),
+                        ])
         threading.Thread(target=_run, daemon=True).start()
 
     def _set_label(self, text):
@@ -2276,17 +2506,60 @@ class FloatingWidget:
                 self.label.setStringValue_(text)
         _on_main(_do)
 
+    def _set_attributed_label(self, parts):
+        """Set label with attributed string (bold keys)."""
+        def _do():
+            if self.label:
+                attr = self._make_attributed(parts, size=9.5, center=False)
+                self.label.setAttributedStringValue_(attr)
+        _on_main(_do)
+
+    def _set_sf_label(self, symbol_name, parts):
+        """Set label with SF Symbol prefix + attributed text parts."""
+        def _do():
+            if not self.label:
+                return
+            result = AppKit.NSMutableAttributedString.alloc().init()
+            # Add SF Symbol image
+            img = self._sf_symbol_image(symbol_name, size=9.5, color=self._theme_color("text_color"))
+            if img:
+                attachment = AppKit.NSTextAttachment.alloc().init()
+                cell = AppKit.NSTextAttachmentCell.alloc().initImageCell_(img)
+                attachment.setAttachmentCell_(cell)
+                attachment.setBounds_(((0, -4), (img.size().width, img.size().height)))
+                img_str = AppKit.NSAttributedString.attributedStringWithAttachment_(attachment)
+                result.appendAttributedString_(img_str)
+                space = AppKit.NSAttributedString.alloc().initWithString_(" ")
+                result.appendAttributedString_(space)
+            # Add text parts
+            normal_font = AppKit.NSFont.systemFontOfSize_weight_(9.5, AppKit.NSFontWeightMedium)
+            key_font = AppKit.NSFont.monospacedSystemFontOfSize_weight_(9.5, AppKit.NSFontWeightBold)
+            text_clr = self._theme_color("text_color")
+            for text, is_key in parts:
+                attrs = {
+                    AppKit.NSFontAttributeName: key_font if is_key else normal_font,
+                    AppKit.NSForegroundColorAttributeName: text_clr,
+                }
+                part = AppKit.NSAttributedString.alloc().initWithString_attributes_(text, attrs)
+                result.appendAttributedString_(part)
+            self.label.setAttributedStringValue_(result)
+        _on_main(_do)
+
     def update_level(self, level):
         if not self.bar_view or not self._expanded:
             return
-        scaled = min(level * SENSITIVITY, 1.0)
+        # Logarithmic compression — tames peaks, more like real VU meters
+        raw = min(level * SENSITIVITY, 1.0)
+        scaled = math.log1p(raw * 9) / math.log1p(9)  # log compression 0-1
         bar_width = max(1, int(scaled * self._bar_max_w))
         t = self._get_theme()
 
-        if scaled < VU_THRESHOLD_LOW:
+        if scaled < VU_THRESHOLD_GREEN:
             r, g, b = t["vu_color_low"]
-        elif scaled < VU_THRESHOLD_HIGH:
+        elif scaled < VU_THRESHOLD_YELLOW:
             r, g, b = t["vu_color_mid"]
+        elif scaled < VU_THRESHOLD_ORANGE:
+            r, g, b = t.get("vu_color_orange", t["vu_color_mid"])
         else:
             r, g, b = t["vu_color_high"]
         def _do():
@@ -2306,13 +2579,54 @@ class FloatingWidget:
         def _do():
             if self.pause_btn:
                 if paused:
-                    # Microphone + arrow = "resume dictating" (not confusing play icon)
-                    self.pause_btn.setStringValue_("\U0001f399")
+                    if self._use_sf_symbols():
+                        self.pause_btn.setAttributedStringValue_(self._sf_attributed("mic.fill", size=11, y_offset=-8))
+                    else:
+                        self.pause_btn.setStringValue_("\U0001f399")
                     self.pause_btn.layer().setBackgroundColor_(self._theme_color("pause_resume_bg").CGColor())
                 else:
-                    self.pause_btn.setStringValue_("\u23f8")
+                    if self._use_sf_symbols():
+                        self.pause_btn.setAttributedStringValue_(self._sf_attributed("pause.fill", size=11, y_offset=-8))
+                    else:
+                        self.pause_btn.setStringValue_("\u23f8")
                     self.pause_btn.layer().setBackgroundColor_(self._theme_color("button_bg").CGColor())
         _on_main(_do)
+
+    def start_rec_timer(self):
+        """Start the recording timer display."""
+        self._rec_start_time = time.time()
+        self._rec_elapsed = 0
+        self._rec_timer_active = True
+        def _run():
+            while self._rec_timer_active:
+                if self._rec_start_time is not None:
+                    total = self._rec_elapsed + (time.time() - self._rec_start_time)
+                else:
+                    total = self._rec_elapsed
+                mins = int(total) // 60
+                secs = int(total) % 60
+                def _update(m=mins, s=secs):
+                    if self.label2 and self._rec_timer_active:
+                        self.label2.setStringValue_(f"{m:02d}:{s:02d}")
+                        self.label2.setHidden_(False)
+                _on_main(_update)
+                time.sleep(0.5)
+        threading.Thread(target=_run, daemon=True).start()
+
+    def pause_rec_timer(self):
+        """Pause the timer — accumulate elapsed time."""
+        if self._rec_start_time is not None:
+            self._rec_elapsed += time.time() - self._rec_start_time
+            self._rec_start_time = None
+
+    def resume_rec_timer(self):
+        """Resume the timer from where it paused."""
+        self._rec_start_time = time.time()
+
+    def stop_rec_timer(self):
+        """Stop the timer."""
+        self._rec_timer_active = False
+        self._rec_start_time = None
 
 
 # ── History Entry ───────────────────────────────────────────────────────
@@ -2680,6 +2994,8 @@ class PXDictateApp(rumps.App):
         self.hotkey_mgr.start()
         _on_main(_init_sounds)
         threading.Thread(target=self._init_audio, daemon=True).start()
+        # Apply SF Symbol menu bar icon (replaces emoji set in super().__init__)
+        self._set_title("\U0001f399\ufe0f")
         # Auto-check for updates (once per day, silent)
         threading.Thread(target=self._auto_check_updates, daemon=True).start()
 
@@ -2848,7 +3164,32 @@ class PXDictateApp(rumps.App):
             self.widget.move_to_active_screen()
 
     def _set_title(self, t):
-        _on_main(lambda: setattr(self, 'title', t))
+        """Set menu bar icon using SF Symbols (template, monocromo) or fallback text."""
+        SF_MAP = {
+            "\U0001f399\ufe0f": "mic.fill",
+            "\U0001f534": "record.circle.fill",
+            "\u23f8\ufe0f": "pause.circle.fill",
+            "\u231b": "clock.arrow.circlepath",
+        }
+        sf_name = SF_MAP.get(t)
+        def _do():
+            try:
+                si = self._nsapp.nsstatusitem
+            except (AttributeError, TypeError):
+                self.title = t
+                return
+            if sf_name:
+                img = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(sf_name, None)
+                if img:
+                    img.setTemplate_(True)
+                    img.setSize_((18, 18))
+                    si.button().setImage_(img)
+                    si.button().setTitle_("")
+                    return
+            # Fallback — clear image, use text
+            si.button().setImage_(None)
+            si.button().setTitle_(t)
+        _on_main(_do)
 
     def _build_language_menu(self):
         """Build Language sub-menu with Whisper-supported languages."""
@@ -3025,7 +3366,7 @@ class PXDictateApp(rumps.App):
         self.prefs.save()
         self.widget.set_hotkey_display("custom")
         # Show in pill then confirm with non-blocking modal
-        self.widget.set_status(f"\u2705 Hotkey: {display}")
+        self.widget.set_status(f"Hotkey: {display} \u2713")
         def _show_confirmed():
             time.sleep(1)
             def _modal():
@@ -3608,6 +3949,8 @@ class PXDictateApp(rumps.App):
                 self.session.resume()
             self.widget.set_status("🎙️ Recording — esc to stop")
             self.widget._start_alternation()
+            self.widget.resume_rec_timer()
+            self._speech_detected = True  # Don't restart silence monitoring after unpause
             if self._hold_active:
                 self.hotkey_mgr.set_hold_paused(False)
         else:
@@ -3621,7 +3964,9 @@ class PXDictateApp(rumps.App):
             self.widget.set_paused_visual(True)
             play_sound("pause")
             self.widget.update_level(0)
-            self.widget.set_status("⏸️ Paused — Ctrl resume")
+            self.widget.set_status("Paused \u2014 Ctrl resume")
+            self.widget.pause_rec_timer()
+            self._silence_monitor_active = False
             if self.session:
                 self.session.add_frames(current_frames)
                 self.session.pause()  # pause event gets a slightly later timestamp
@@ -3647,7 +3992,7 @@ class PXDictateApp(rumps.App):
         min_frames = int(SAMPLE_RATE / CHUNK * 0.5)
         if len(frames) < min_frames:
             if self.paused:
-                self.widget.set_status("⏸️ Paused (too short) — Ctrl resume")
+                self.widget.set_status("Paused (too short) \u2014 Ctrl resume")
             return
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
@@ -3658,27 +4003,34 @@ class PXDictateApp(rumps.App):
                 wf.setframerate(SAMPLE_RATE)
                 wf.writeframes(b"".join(frames))
 
-            text = transcribe(tmp.name, lang=self.lang)
-            if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
-                _log.info("Filtered Whisper hallucination: %s", text[:30])
+            if not _audio_has_speech(frames):
+                _log.info("Segment audio is silence — skipping transcription")
                 text = ""
+            else:
+                text = transcribe(tmp.name, lang=self.lang)
+                # Filter bracket-only text like [AUDIO_EN_BLANCO], (Blank Audio), etc.
+                if text and re.fullmatch(r'[\[\(\{].*[\]\)\}]', text.strip()):
+                    _log.info("Filtered bracket hallucination: %s", text[:30])
+                    text = ""
+                if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
+                    _log.info("Filtered Whisper hallucination: %s", text[:30])
+                    text = ""
         finally:
             try:
                 os.unlink(tmp.name)
             except OSError:
                 pass
 
-        if text and self._transcribing:
+        if text:
             if self.session:
                 self.session.add_segment(text, timestamp=seg_time)
-            if self.auto_paste and self._transcribing:
+            if self.auto_paste:
                 paste_to_active_app(text)
                 play_sound("pasted")
             if self.paused:
-                preview = text[:20] + "..." if len(text) > 20 else text
-                self.widget.set_status("⏸️ ✅ Segment saved — Ctrl resume")
+                self.widget.set_status("Segment saved \u2713 \u2014 Ctrl resume")
         elif self.paused:
-            self.widget.set_status("⏸️ Paused — Ctrl resume")
+            self.widget.set_status("Paused \u2014 Ctrl resume")
 
     def start_recording(self):
         if self.recording:
@@ -3699,6 +4051,7 @@ class PXDictateApp(rumps.App):
 
         self.widget.move_to_active_screen()
         self.widget.expand()
+        self.widget.start_rec_timer()
         self._collecting = True
         self._speech_detected = False
         self._silence_monitor_active = True
@@ -3706,6 +4059,7 @@ class PXDictateApp(rumps.App):
 
     def cancel_recording(self):
         """Cancel recording or transcription — discard everything."""
+        self.widget.stop_rec_timer()
         was_transcribing = self._transcribing
         self._transcribing = False
         self._silence_monitor_active = False
@@ -3729,7 +4083,7 @@ class PXDictateApp(rumps.App):
 
         _log.info("Recording cancelled by user (ESC)")
         play_sound("stop")
-        self.widget.set_status("\U0001f6ab Cancelled")
+        self.widget.set_status("Cancelled")
         self.widget.update_level(0)
         self._set_title("🎙️")
         threading.Timer(1.5, self.widget.collapse).start()
@@ -3737,6 +4091,7 @@ class PXDictateApp(rumps.App):
     def stop_recording(self):
         if not self.recording:
             return
+        self.widget.stop_rec_timer()
         self._silence_monitor_active = False
         self.recording = False
         self.paused = False
@@ -3771,7 +4126,7 @@ class PXDictateApp(rumps.App):
 
         self._set_title("⏳")
         play_sound("stop")
-        self.widget.set_status("🔄 Transcribing...")
+        self.widget.set_status("Transcribing...")
         self._transcribing = True
         self.widget.update_level(0)
         seg_time = datetime.datetime.now()  # capture recording-end time before whisper
@@ -3801,7 +4156,7 @@ class PXDictateApp(rumps.App):
             if elapsed >= 5 and not alerted_5s:
                 alerted_5s = True
                 play_sound("start")  # subtle alert sound
-                self.widget.set_status("\U0001f507 No sound detected...")
+                self.widget.set_status("No sound detected...")
             # 10-second alert — start countdown
             if elapsed >= SILENCE_TIMEOUT and not alerted_10s:
                 alerted_10s = True
@@ -3812,7 +4167,7 @@ class PXDictateApp(rumps.App):
                         if self._speech_detected:
                             self.widget.set_status("\U0001f399\ufe0f Recording...")
                         return
-                    self.widget.set_status(f"\U0001f507 No speech — cancelling in {i}...")
+                    self.widget.set_status(f"No speech \u2014 cancelling in {i}...")
                     time.sleep(1)
                 if self._silence_monitor_active and not self._speech_detected:
                     _log.info("Auto-cancel: no speech detected for %ds", SILENCE_TIMEOUT + SILENCE_COUNTDOWN)
@@ -3833,6 +4188,8 @@ class PXDictateApp(rumps.App):
             self._set_title("🎙️")
 
     def _transcribe_final(self, frames, seg_time=None):
+        # Show progress bar during transcription
+        self.widget.show_progress_bar()
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         try:
             with wave.open(tmp.name, "wb") as wf:
@@ -3841,15 +4198,25 @@ class PXDictateApp(rumps.App):
                 wf.setframerate(SAMPLE_RATE)
                 wf.writeframes(b"".join(frames))
 
-            text = transcribe(tmp.name, lang=self.lang)
-            if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
-                _log.info("Filtered Whisper hallucination: %s", text[:30])
+            if not _audio_has_speech(frames):
+                _log.info("Final audio is silence — skipping transcription")
                 text = ""
+            else:
+                def _on_progress(pct):
+                    self.widget.update_progress(pct)
+                text = transcribe(tmp.name, lang=self.lang, on_progress=_on_progress)
+                if text and re.fullmatch(r'[\[\(\{].*[\]\)\}]', text.strip()):
+                    _log.info("Filtered bracket hallucination: %s", text[:30])
+                    text = ""
+                if text and text.strip().lower() in WHISPER_HALLUCINATIONS:
+                    _log.info("Filtered Whisper hallucination: %s", text[:30])
+                    text = ""
         finally:
             try:
                 os.unlink(tmp.name)
             except OSError:
                 pass
+            self.widget.hide_progress_bar()
 
         if text and self._transcribing:
             if self.session:
@@ -3875,7 +4242,7 @@ class PXDictateApp(rumps.App):
 
         if was_cancelled:
             _log.info("Finalize skipped — transcription was cancelled")
-            self.widget.set_status("\U0001f6ab Cancelled")
+            self.widget.set_status("Cancelled")
             self._set_title("\U0001f399\ufe0f")
             threading.Timer(1.5, self.widget.collapse).start()
             return
@@ -3896,11 +4263,11 @@ class PXDictateApp(rumps.App):
 
         if session and session.full_text:
             full = session.full_text
-            self.widget.set_status("✅ Transcript copied!")
+            self.widget.set_status("Transcript copied \u2713")
             self._add_to_history(full, session=session)
         else:
             play_sound("error")
-            self.widget.set_status("❌ Empty")
+            self.widget.set_status("Empty \u2717")
 
         time.sleep(FINALIZE_DELAY)
         self.widget.collapse()

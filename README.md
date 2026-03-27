@@ -169,11 +169,16 @@ This is the first open-source project from PX Innovative. We're building in publ
 - [x] Custom Key — learn mode detects any key and assigns all 4 modes
 - [x] ESC to cancel — discards recording or in-progress transcription
 - [x] Silence detection — alerts at 5s and 10s, auto-cancel with countdown
-- [x] Whisper hallucination filter — blocks "Gracias por ver el video" and similar
+- [x] Whisper hallucination filter — 3-layer protection (energy check + bracket filter + blocklist)
 - [x] Light mode support — readable text in macOS light appearance
+- [x] SF Symbols — modern monochrome icons in menu bar and floating pill (Glass/Minimal)
+- [x] Transcription progress bar — blue bar fills during Whisper processing ([#18](../../issues/18))
+- [x] Recording timer — mm:ss counter, pauses with recording
+- [x] VU meter — 4-color zones with logarithmic compression, sensitivity calibrated
+- [x] Mic sensitivity slider — configurable via environment variable ([#19](../../issues/19))
 
 ### v1.2 — In Progress
-- [ ] Transcription progress bar — visual feedback during Whisper processing ([#18](../../issues/18))
+- [ ] Icon alignment polish — perfect centering of SF Symbols in pill buttons ([#20](../../issues/20))
 - [ ] Transcript preview in pill — 2-line animated text ([#16](../../issues/16))
 - [ ] Claude Code skills — /dictate-setup and /dictate included in repo ([#17](../../issues/17))
 - [ ] Audio waveform visualization — animated alternative to VU meter ([#14](../../issues/14))
