@@ -88,7 +88,7 @@ done
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
-BLUE='\033[0;34m'; BOLD='\033[1m'; RESET='\033[0m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
 info()    { printf "${BLUE}[info]${RESET}  %s\n" "$1"; }
 ok()      { printf "${GREEN}[  ok]${RESET}  %s\n" "$1"; }
@@ -114,14 +114,17 @@ version_gte() {
 
 # ── Header ───────────────────────────────────────────────────────────────────
 clear 2>/dev/null || true
+printf "${CYAN}"
 cat <<'BANNER'
-
-  ╔═══════════════════════════════════════╗
-  ║         PX Dictate Installer          ║
-  ║       Voice-to-Text for macOS         ║
-  ╚═══════════════════════════════════════╝
+    ____  _  __   ____  _      __        __
+   / __ \| |/ /  / __ \(_)____/ /_____ _/ /____
+  / /_/ /|   /  / / / / / ___/ __/ __ `/ __/ _ \
+ / ____//   |  / /_/ / / /__/ /_/ /_/ / /_/  __/
+/_/    /_/|_| /_____/_/\___/\__/\__,_/\__/\___/
 
 BANNER
+printf "${RESET}"
+printf "        ${BOLD}Voice-to-Text for macOS${RESET}\n\n"
 info "Version ${APP_VERSION}"
 echo ""
 
