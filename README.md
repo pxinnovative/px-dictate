@@ -175,14 +175,13 @@ This is the first open-source project from PX Innovative. We're building in publ
 - [x] Transcription progress bar — blue bar fills during Whisper processing ([#18](../../issues/18))
 - [x] Recording timer — mm:ss counter, pauses with recording
 - [x] VU meter — 4-color zones with logarithmic compression, sensitivity calibrated
-- [x] Mic sensitivity — configurable via environment variable ([#19](../../issues/19))
 - [x] Onboarding wizard redesign — 6→3 pages, no scroll, page dots ([#6](../../issues/6))
 
 ### v1.2 — In Progress
 - [ ] Self-contained .dmg installer ([#1](../../issues/1))
 - [ ] Python 3.8 minimum support ([#3](../../issues/3))
 - [ ] Custom vocabulary / domain-specific terms ([#5](../../issues/5))
-- [ ] Figlet ASCII banner for installer ([#7](../../issues/7))
+- [x] Figlet ASCII banner for installer ([#7](../../issues/7))
 - [ ] Wake word detection — "Hey Dictate" ([#13](../../issues/13))
 - [ ] Audio waveform visualization — animated alternative to VU meter ([#14](../../issues/14))
 - [ ] Transcript preview in pill — 2-line animated text ([#16](../../issues/16))
