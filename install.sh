@@ -121,10 +121,11 @@ cat <<'BANNER'
   / /_/ /|   /  / / / / / ___/ __/ __ `/ __/ _ \
  / ____//   |  / /_/ / / /__/ /_/ /_/ / /_/  __/
 /_/    /_/|_| /_____/_/\___/\__/\__,_/\__/\___/
-
+╔══════════════════════════════════════════════╗
+║  Private Voice-to-Text Tool - 100% Local AI  ║
+╚══════════════════════════════════════════════╝
 BANNER
-printf "${RESET}"
-printf "        ${BOLD}Voice-to-Text for macOS${RESET}\n\n"
+printf "${RESET}\n"
 info "Version ${APP_VERSION}"
 echo ""
 
